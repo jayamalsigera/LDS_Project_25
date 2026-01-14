@@ -1,12 +1,12 @@
 %% Description
 %This script simulates the development of a system where n_nodes sensors
 %monitor a system a communicate information to eachother based on a
-%deterministic criteria. Each of the sensors get one row in the C matrix as
-%their output.
+%stochastic criteria. Each of the sensors get one row in the C matrix as
+%their individual C
 %The Kalman filter is implemented in the information form to ease
 %transition to a robust Kalman filter (minimax filter)
 %The plant is a standard state-space model.
-%All nodes are assumed to be connected.
+
 clear
 close all
 
@@ -27,6 +27,11 @@ X=cell(simlength,1);
 %Estimated state as estimated by each node
 X_hat=cell(simlength,n_nodes);
 
+c_test=X_hat;
+nu=c_test;
+zeta=nu;
+jimmy=nu;
+c_tune=nu;
 
 %Plant parameters:
 A=[0 1;-0.8 -1];
@@ -78,13 +83,31 @@ end
 
 %Sending and receiving information
 
-%For starters assuming all nodes are connected
-pi=ones(n_nodes)/(n_nodes);
+%The connections between different nodes are defined in the matrix below
+%The diagonal must be 1's
+connections=[1 1 0;
+             1 1 1;
+             0 1 1];
+
+
+%Define pi, which contains the weights for fusing data
+pi=zeros(size(connections));
+
+%Each element in pi is given the weight: number of connections + 1
+%Since a node is also counted as connected to itself this is the sum of
+%elements in a row
+for i =1:length(connections(:,1))
+pi(i,:)=connections(i,:)/sum(connections(i,:));
+end
+
 
 %The uncertainty factor, which limits the influence of error in stored estimates,
 %when no transmission is made
 delta=0.05;
 
+%The matrix used for calculting the exponential in stochastic
+%event-triggered schedule
+Z=eye(n_states);
 
 %State estimation error tolerance for sending information
 epsilon=0.05;
@@ -139,13 +162,15 @@ for t=1:simlength
         
         %Return from information variables to states
         [X_hat{t,i},x_hat_bar]=getStates(Omega{t,i,i},q{t,i,i},Omega_bar,q_bar);
-
+        
         %Evaluate whether to send data to other sensors for next
         %iteration:
         if t==1
             c(i)=1;
         else
-        c(i) =checkFusionCondition(X_hat{t,i},x_hat_bar,Omega{t,i,i},epsilon);
+        %c(i) =checkFusionCondition(X_hat{t,i},x_hat_bar,Omega{t,i,i},epsilon);
+        c(i)=checkFusionConditionStochastic(X_hat{t,i},x_hat_bar,eye(n_states));
+        
         end
        
     end
@@ -273,3 +298,27 @@ function c = checkFusionCondition(X,x_bar,Omega,epsilon)
             c=1;
        end
 end
+
+%Check if a node should transmit its data to the other nodes
+function c = checkFusionConditionStochastic(X,x_bar,Z)
+        %Calculate the erro in state estimates
+        error=X-x_bar;
+        
+        %Implement eq. 10 in stochastic-event-triggered, but with states in
+        %stead of outputs
+        nu=exp(-1/2*error'*Z*error);
+        
+
+        %Generate random number
+        zeta=rand;
+
+        %If error is larger than tolerance, then transmit
+       if zeta<nu
+            c=0;
+        else
+            c=1;
+       end
+end
+
+
+

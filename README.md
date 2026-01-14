@@ -3,8 +3,7 @@ Robust event-triggered estimation in a sensor network.
 
 Version: Victor_140126
 
-The present code simulates a sensore network, where each sensor runs an information form Kalman filter. The plant is standard statespace model of an  underdamped standard second order system. The criterion for transmitting is stochastic, and all sensors communicate with all sensors.
-
+The present code simulates a sensor network, where each sensor runs an information form Kalman filter. The plant is standard statespace model of an underdamped standard second order system. The criterion for transmitting is stochastic, but the deterministic function is still in the script, for use if neccesary.
 
 The code is structured in "Main.m" which contains initialization of variables, main loop and most functions. 
 "StateSpacePlant.m" contains the class definition for a classic state-space model. 
@@ -16,6 +15,8 @@ Important variables are:
 - q: simlength x n_nodes x n_nodes cell array: Each cell contains a nodes best knowledge of the information vector of some node for some time instance. Indexing is q(time instance,ID of node to be estimated,ID estimating node), any case where ID of node to be estimated =ID estimating node contains a nodes knowledge of itself, which is always up to date.
 - Omega: simlength x n_nodes x n_nodes cell array: Each cell contains a nodes best knowledge of the inverse of the covariance matrix P used in Kalman filters for some node for some time instance. Indexing is the same as q.
 - c: n_nodes x 1 array: each element is used with either 1 or 0 to denote whether a sensor decides to transmit its data to the other nodes.
+- pi: n_nodes x n_nodes matrix showing the connection of each node to other nodes and with a scaling factor for fusing data. 
+
 
 Initialization consists of determining:
 - simlength: How many timesteps, the simulation will run for
@@ -24,12 +25,14 @@ Initialization consists of determining:
 - A, B, C, D: Parameters of true statespace model. 
 - A_hat, C_hat, Q, R: Parameters of Kalman filter (A_hat and C_hat are presently copies of A and C, while R is a column vector with each element i being $D(i)^2$)
 - x0: Initial condition of the true statespace model.
-- x0_hat: Initial state estimate of the Kalman filter (presently just a copy of x0)
-- pi: n_nodes x n_nodes matrix showing the connection of each node to other nodes and with a scaling factor for fusing data
+- x0_hat: Initial state estimate of the Kalman filter (presently just a copy of x0) 
+- connections: Matrix used to show the connections between the different nodes, ie. which nodes can communicate to which nodes. This is used to calculate pi.
 - delta: uncertainty factor used to limit the influence of bad estimates of the information vector of other nodes, when no data is received.
 - epsilon: Tolerance on error between a priori state estimates and corrected state estimates.
+- Z: Matrix used in calculating tolerance for stochastic transmission protocol.
 
-- The variable Omega q presently initialized as $I_{n_nodes}$ for all cells Omega(1,i,j) $i,j = 1..n_nodes$
-- The variable q is presently initialized as $Omega{1,i,i}\x0_hat$ for all cases where ID of node to be estimated =ID estimating node and t = 1, and a 0 n_states x 1 vector for all other cases t = 0.
+
+- The variable Omega q presently initialized as $I_{n\_nodes}$ for all cells Omega(1,i,j) $i,j = 1..n\_nodes$
+- The variable q is presently initialized as $Omega{1,i,i}\\x0\_hat$ for all cases where ID of node to be estimated =ID estimating node and t = 1, and a 0 n_states x 1 vector for all other cases t = 0.
 
 
