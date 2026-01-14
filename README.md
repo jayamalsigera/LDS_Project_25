@@ -1,7 +1,7 @@
 # LDS_Project_25
 Robust event-triggered estimation in a sensor network. 
 
-Version: Victor_140126
+Version: Victor_140126_stochastic
 
 The present code simulates a sensor network, where each sensor runs an information form Kalman filter. The plant is standard statespace model of an underdamped standard second order system. The criterion for transmitting is stochastic, but the deterministic function is still in the script, for use if neccesary.
 
