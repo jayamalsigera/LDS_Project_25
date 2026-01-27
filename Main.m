@@ -34,7 +34,7 @@ B=[0.1;0.2];
 C=[2 0;1 0;0 1];
 D=[0.5;0.1;0.1];
 %Define the plant object from the Plant class
-plant=StateSpacePlant(A,B,C,D);
+plant=StateSpaceModel(A,B,C,D);
 
 %Kalman Filter parameters
 A_hat=A;
