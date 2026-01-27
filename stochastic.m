@@ -17,7 +17,7 @@ rng(42);
 %% Initialization
 
 % Number of timesteps in simulation
-simlength = 10;
+simlength = 100;
 
 % Number of nodes and states
 n_nodes = 3;
@@ -149,15 +149,13 @@ for t = 1:simlength
     [q{t, i, i}, Omega{t, i, i}] = kfCorrect(q_bar, Omega_bar, C_hat(i, :), R(i), Y{t}(i));
 
     % Return from information variables to states
-    [X_hat{t, i}, x_hat_bar] = getStates(Omega{t, i, i}, q{t, i, i}, Omega_bar, q_bar);
+    [X_hat{t, i}, x_hat_bar] = kfGetState(Omega{t, i, i}, q{t, i, i}, Omega_bar, q_bar);
 
     % Evaluate whether to send data to other sensors for next iteration:
     if t == 1
       c(i) = 1;
     else
-      % c(i) =checkFusionCondition(X_hat{t,i},x_hat_bar,Omega{t,i,i},epsilon);
-      c(i) = checkFusionConditionStochastic(X_hat{t, i}, x_hat_bar, eye(n_states));
-
+      c(i) = checkStochasticFusionConditions(X_hat{t, i}, x_hat_bar, eye(n_states));
     end
 
   end
@@ -201,92 +199,3 @@ plot(X_hat_plot(:, 2, 2))
 plot(X_hat_plot(:, 2, 3))
 legend('True X', 'Node 1', 'Node 2', 'Node 3')
 hold off
-
-%% Functions
-
-% Function to fuse the data between nodes
-function [q_new, Omega_new, q_fused, Omega_fused] = fuseData(q, Omega, c, pi, i, delta)
-  % We wish to create the summation eq. 10-11 from robust-kalman-eventtriggered
-
-  % First data is copied from 1 object to the other, as the new objects
-  % contain the same data as the old ones, unless updated
-  Omega_new = Omega(:, i);
-  q_new = q(:, i);
-
-  % The lengths are redefined so as to not have to pass them
-  n_nodes = length(c);
-  n_states = length(q{i, i});
-  % The sizes of the variables used to do the summation are defined
-  sum_q = zeros(n_states, 1);
-  sum_Omega = zeros(n_states);
-  % Loop over all nodes except i itself
-  for j = 1:n_nodes
-    % skip the case where j=i
-    if j == i
-      continue
-    end
-
-    if c(j) == 1
-      % If c = 1 take the new input
-      q_new(j) = q(j, j);
-      Omega_new(j) = Omega(j, j);
-      % Here the new measurements are added to the summation object only gained by pi
-      sum_q = sum_q + pi(i, j) * q{j, j};
-      sum_Omega = sum_Omega + pi(i, j) * Omega{j, j};
-    else
-      % If c = 0 no transmission is received and stored estimate
-      % is added scaled by pi and (1+delta)^-1 in stead of fresh
-      % data
-      sum_q = sum_q + 1 / (1 + delta) * pi(i, j) * q{j, i};
-      sum_Omega = sum_Omega + 1 / (1 + delta) * pi(i, j) * Omega{j, i};
-
-    end
-
-  end
-
-  % Information fusion
-  q_fused = pi(i, i) * q{i, i} + sum_q;
-  Omega_fused = pi(i, i) * Omega{i, i} + sum_Omega;
-end
-
-
-% Returning from information form to statespace-form state vectors
-function [X, x_bar] = getStates(Omega, q, Omega_bar, q_bar)
-  % Modification of first equation in III B in:
-  % https://isas.iar.kit.edu/pdf/Fusion17_Pfaff-IDKF.pdf
-  X = Omega \ q;
-  x_bar = Omega_bar \ q_bar;
-end
-
-% Check if a node should transmit its data to the other nodes
-function c = checkFusionCondition(X, x_bar, Omega, epsilon)
-  error = X - x_bar;
-
-  % If error is larger than tolerance, then transmit
-  if error' * (Omega \ error) < epsilon
-    c = 0;
-  else
-    c = 1;
-  end
-
-end
-
-% Check if a node should transmit its data to the other nodes
-function c = checkFusionConditionStochastic(X, x_bar, Z)
-  % Calculate the erro in state estimates
-  error = X - x_bar;
-
-  % Implement eq. 10 in stochastic-event-triggered, but with states in
-  % stead of outputs
-  nu = exp(-1/2 * error' * Z * error);
-
-  % Generate random number
-  zeta = rand;
-
-  % If error is larger than tolerance, then transmit
-  if zeta < nu
-    c = 0;
-  else
-    c = 1;
-  end
-end

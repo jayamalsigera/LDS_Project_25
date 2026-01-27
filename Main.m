@@ -54,7 +54,7 @@ x0_hat=x0;
 %predicted by each state (q(t,2,1) is what node 1 thinks node 2's q is)
 %The spot (t,i,i) contains the nodes knowledge of its own information
 %vector and is always correct
-q = cell(simlength, n_nodes,n_nodes); 
+q = cell(simlength, n_nodes,n_nodes);
 %The same convention is used in Omega
 Omega=cell(simlength,n_nodes,n_nodes);
 
@@ -106,9 +106,9 @@ for t=1:simlength
     %Can definitely be done more tidy but this seems a nice way to start
     %where the time t is intuitive
 
-    
-    
-    
+
+
+
 
 
     %For each node
@@ -119,24 +119,24 @@ for t=1:simlength
             %contain an initial guess
             q_fused=q{t,i,i};
             Omega_fused=Omega{t,i,i};
-        
+
         else
             %For all subsequent steps the fusing of data is done using the
             %fuseData Function
-            [q_new, Omega_new, q_fused, Omega_fused] = fuseData(reshape(q(t-1,:,:), n_nodes, n_nodes),  reshape(Omega(t-1,:,:), n_nodes, n_nodes), c_prev, pi, i, delta); 
-            q(t,:,i) = q_new.'; 
+            [q_new, Omega_new, q_fused, Omega_fused] = fuseData(reshape(q(t-1,:,:), n_nodes, n_nodes),  reshape(Omega(t-1,:,:), n_nodes, n_nodes), c_prev, pi, i, delta);
+            q(t,:,i) = q_new.';
             Omega(t,:,i) = Omega_new.';
         end
-        
-        
-        
+
+
+
         %Prediction step using information form Kalman Filter
         [q_bar, Omega_bar]=predict(q_fused,Omega_fused,A_hat,Q);
-       
-       
+
+
         %Correction step using information form Kalman Filter
         [q{t,i,i},Omega{t,i,i}]=correct(q_bar,Omega_bar,C_hat(i,:),R(i),Y{t}(i));
-        
+
         %Return from information variables to states
         [X_hat{t,i},x_hat_bar]=getStates(Omega{t,i,i},q{t,i,i},Omega_bar,q_bar);
 
@@ -147,7 +147,7 @@ for t=1:simlength
         else
         c(i) =checkFusionCondition(X_hat{t,i},x_hat_bar,Omega{t,i,i},epsilon);
         end
-       
+
     end
     c_prev=c;
 end
@@ -156,14 +156,14 @@ end
 %% Plotting of the resulting state estimates
 figure(1)
 %Returning from cell array to actual array for plotting
-X_plot = zeros(simlength, n_states); 
-for t = 1:simlength 
-    X_plot(t,:) = X{t}.'; 
+X_plot = zeros(simlength, n_states);
+for t = 1:simlength
+    X_plot(t,:) = X{t}.';
 end
 X_hat_plot = zeros(simlength, n_states,n_nodes);
-for t = 1:simlength 
+for t = 1:simlength
     for i=1:n_nodes
-    X_hat_plot(t,:,i) = X_hat{t,i}.'; 
+    X_hat_plot(t,:,i) = X_hat{t,i}.';
     end
 end
 
@@ -198,7 +198,7 @@ function [q_new,Omega_new,q_fused,Omega_fused]=fuseData(q,Omega,c,pi,i,delta)
   %contain the same data as the old ones, unless updated
   Omega_new=Omega(:,i);
   q_new=q(:,i);
-  
+
   %The lengths are redefined so as to not have to pass them
   n_nodes=length(c);
   n_states=length(q{i,i});
@@ -212,7 +212,7 @@ function [q_new,Omega_new,q_fused,Omega_fused]=fuseData(q,Omega,c,pi,i,delta)
                 continue
             end
             if c(j)==1
-                %If c = 1 take the new input 
+                %If c = 1 take the new input
                 q_new(j)=q(j,j);
                 Omega_new(j)=Omega(j,j);
                 %Here the new measurements are added to the summation object only gained by pi
@@ -224,12 +224,12 @@ function [q_new,Omega_new,q_fused,Omega_fused]=fuseData(q,Omega,c,pi,i,delta)
                 %data
                 sum_q=sum_q+1/(1+delta)*pi(i,j)*q{j,i};
                 sum_Omega=sum_Omega+1/(1+delta)*pi(i,j)*Omega{j,i};
-              
+
             end
 
      end
-        
-       
+
+
         %Information fusion
         q_fused=pi(i,i)*q{i,i}+sum_q;
         Omega_fused=pi(i,i)*Omega{i,i}+sum_Omega;
@@ -264,7 +264,7 @@ end
 %Check if a node should transmit its data to the other nodes
 function c = checkFusionCondition(X,x_bar,Omega,epsilon)
         error=X-x_bar;
-        
+
 
         %If error is larger than tolerance, then transmit
        if error'*(Omega\error)<epsilon
