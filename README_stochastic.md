@@ -6,7 +6,7 @@ Version: Victor_140126_stochastic
 The present code simulates a sensor network, where each sensor runs an information form Kalman filter. The plant is standard statespace model of an underdamped standard second order system. The criterion for transmitting is stochastic, but the deterministic function is still in the script, for use if neccesary.
 
 The code is structured in "Main.m" which contains initialization of variables, main loop and most functions. 
-"StateSpacePlant.m" contains the class definition for a classic state-space model. 
+"StateSpaceModel.m" contains the class definition for a classic state-space model. 
 
 Important variables are:
 - Y: simlength x 1 cell array. Each cell contains a n_nodes x 1 column vector with the output as measured by each node at each time instance. Indexing is Y(time instance)
