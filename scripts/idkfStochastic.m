@@ -143,13 +143,13 @@ for t = 1:simlength
     end
 
     % Prediction step using information form Kalman Filter
-    [q_bar, Omega_bar] = kfPredict(q_fused, Omega_fused, A_hat, Q);
+    [q_bar, Omega_bar] = idkfPredict(q_fused, Omega_fused, A_hat, Q);
 
     % Correction step using information form Kalman Filter
-    [q{t, i, i}, Omega{t, i, i}] = kfCorrect(q_bar, Omega_bar, C_hat(i, :), R(i), Y{t}(i));
+    [q{t, i, i}, Omega{t, i, i}] = idkfCorrect(q_bar, Omega_bar, C_hat(i, :), R(i), Y{t}(i));
 
     % Return from information variables to states
-    [X_hat{t, i}, x_hat_bar] = kfGetState(Omega{t, i, i}, q{t, i, i}, Omega_bar, q_bar);
+    [X_hat{t, i}, x_hat_bar] = idkfGetState(Omega{t, i, i}, q{t, i, i}, Omega_bar, q_bar);
 
     % Evaluate whether to send data to other sensors for next iteration:
     if t == 1
