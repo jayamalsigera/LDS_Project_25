@@ -1,26 +1,28 @@
 %% Single Target Tracking Model
 %
-% Based on the simulations of the paper Battistelli, Chisci, Selvi, 2018.
+% Based on Ghion, Zorzi (2023) but 2D like Battistelli, et al. (2018).
 %
-function [plant] = singleTargetTracking2dPlant(alpha, sigma)
-  Ts = 1;  % Sampling Period in seconds
+% Parameters:
+% - Ts - Sampling Period
+% - S - Number of Sensors
+%
+% Returns:
+% - plant - The state space model representing the full plant
+%
+function [plant] = singleTargetTracking2dPlant(Ts, S)
+  Ac = [zeros(2) zeros(2); eye(2) zeros(2)];
+  Bc = eye(4);
 
-  Ac_block = [0 1; 0 -alpha]
-  Ac = [Ac_block zeros(2); zeros(2) Ac_block];
-  Bc = [0 0; sigma 0; 0 0; 0 sigma];
+  sysc = ss(Ac, Bc, eye(4), zeros(size(Bc)))
+  sysd = c2d(sysc, Ts)
 
-  sysc = ss(Ac, Bc, eye(4), zeros(4));
-  sysd = c2d(sysc, Ts);
+  C_i_a = [0 0 1 0; 0 0 0 0];  % Some sensors just measure p_x
+  C_i_b = [0 0 0 0; 0 0 0 1];  % Some sensors just measure p_y
 
-  A = sysd.A;
-  B = sysd.B;
-  C_i = [1 0 0 0; 0 0 1 0];
   D_i = 10^2;  % std of 10m
 
-  % TODO: Actually stack this for how many sensors we'll have
-  C = C_i;
-  % std of each component of the measurement is set to 10m
-  D = D_i;
+  C = [repmat(C_i_a, S/2, 1); repmat(C_i_b, S - S/2, 1)];
+  D = D_i * eye(2 * S);
 
-  plant = SSModel(A, B, C, D);
+  plant = SSModel(sysd.A, sysd.B, C, D);
 end
