@@ -28,7 +28,7 @@ function [G] = createSpatialNetwork(N, S, maxLength)
   distances = pdist2(nodeCoordinates, nodeCoordinates);
 
   % Connect nearby nodes, up to a threshold
-  connectionRadius = 0.13 * maxLength;
+  connectionRadius = 0.12 * maxLength;
   A = sparse(distances < connectionRadius);
 
   A(1:N+1:end) = 0;  % Remove self-loops
