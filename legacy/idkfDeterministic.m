@@ -31,18 +31,20 @@ X_hat = cell(simlength, n_nodes);
 
 % Actual Plant State Space Model
 A = [0 1; -0.8 -1];
-B = [0.1; 0.2];
+B = [0.1 0.0; 0.0 0.2];
 C = [2 0; 1 0; 0 1];
-D = [0.5; 0.1; 0.1];
-plant = StateSpaceModel(A, B, C, D);
+D = diag([0.5 0.1 0.1]);
+
+plant = ActualModel(A, B, C, D);
 
 x0 = [5; 0]; % Plant Initial Conditions
 
 % Kalman Filter parameters
+% TODO: Review these KF parameters
 A_hat = A;
 C_hat = C;
-Q = 0.1 * eye(n_states);
-R = D .* D;
+Q = B;
+R = D;
 
 x0_hat = x0; % Filter Initial Conditions
 
