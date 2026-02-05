@@ -1,12 +1,13 @@
 %% State Space Model for simulating the plant systems
 classdef SSModel
   properties
-    n
-    p
     A
     B
     C
     D
+    n
+    m
+    p
   end
   methods
     function self = SSModel(A, B, C, D)
@@ -15,12 +16,13 @@ classdef SSModel
       self.C = C;
       self.D = D;
 
-      self.n = size(A, 1);  % Assuming square
+      self.n = size(A, 1);
+      self.m = size(B, 2);
       self.p = size(C, 1);
     end
 
     function x_t = stateEq(self, x_prev)
-      w_t = randn(self.n, 1);
+      w_t = randn(self.m, 1);
       x_t = self.A * x_prev + self.B * w_t;
     end
 
