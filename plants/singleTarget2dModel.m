@@ -1,4 +1,4 @@
-%% Single Target Tracking Model
+%% Single Target 2D Model
 %
 % Based on Ghion, Zorzi (2023) but 2D like Battistelli, et al. (2018).
 %
@@ -9,12 +9,12 @@
 % Returns:
 % - plant - The state space model representing the full plant
 %
-function [plant] = singleTargetTracking2dPlant(Ts, S)
+function [plant] = singleTarget2dModel(Ts, S)
   Ac = [zeros(2) zeros(2); eye(2) zeros(2)];
   Bc = eye(4);
 
-  sysc = ss(Ac, Bc, eye(4), zeros(size(Bc)))
-  sysd = c2d(sysc, Ts)
+  sysc = ss(Ac, Bc, eye(4), zeros(size(Bc)));
+  sysd = c2d(sysc, Ts);
 
   C_i_a = [0 0 1 0; 0 0 0 0];  % Some sensors just measure p_x
   C_i_b = [0 0 0 0; 0 0 0 1];  % Some sensors just measure p_y
