@@ -11,14 +11,18 @@ Ts = 0.1;
 
 x0 = [14 14 1800 2000]';  % v_x, v_y, p_x, p_y
 
+% TODO: Review initialization
+x0_hat = x0;
+P0 = diag([1e2 1e2 1e6 1e6]);
+
 nodeCount = 100;
 sensorCount = 20;
 maxLength = 5000;
 
-%% Plant Definition
+%% Network and Plant Definitions
 
 [netGraph] = createSpatialNetwork(nodeCount, sensorCount, maxLength);
-plant = singleTargetTracking2dPlant(Ts, sensorCount);
+plant = singleTarget2dModel(Ts, sensorCount);
 
 %% Simulation Loop
 
@@ -32,6 +36,11 @@ for t = 2:steps + 1
   [Y(:,t), X(:,t)] = plant.update(X(:, t-1));
 end
 
+%% Estimators
+
+ckf = CKF(plant, steps);
+ckf.run(x0_hat, P0, Y);
+
 %% Plotting
 
 plotNetwork(netGraph, maxLength);
@@ -41,6 +50,15 @@ plot(X(3, :), X(4, :));
 title("Simulated Trajectory (State)")
 xlabel('$p_x$', 'Interpreter', 'latex');
 ylabel('$p_y$', 'Interpreter', 'latex');
+grid()
+xlim([0, maxLength]);
+ylim([0, maxLength]);
+
+figure
+plot(ckf.x_hat(3, :), ckf.x_hat(4, :));
+title("CKF Estimated Trajectory")
+xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
+ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
 grid()
 xlim([0, maxLength]);
 ylim([0, maxLength]);
