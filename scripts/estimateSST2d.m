@@ -16,6 +16,8 @@ nodeCount = 100;
 sensorCount = 20;
 maxLength = 5000;
 
+consensusSteps = 3;
+
 %% Network Definition
 
 [netGraph] = createSpatialNetwork(nodeCount, sensorCount, maxLength);
@@ -28,21 +30,27 @@ plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
 % TODO: Review initialization
 x0_hat = x0;
-P0 = diag([1e2 1e2 1e6 1e6]);
+P0 = eye(size(x0, 1));
 
 ckf = CKF(plant, Ts, T);
+dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 
 %% Monte Carlo simulations
 
 totalRuns = 200;
 
 ckfRmse = zeros(totalRuns, T + 1);
+dseacpRmse = zeros(totalRuns, T + 1);
+
 h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
   mdlSample = plant.simulate(x0);
 
   ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
   ckfRmse(run, :) = ckfSample.RMSE;
+
+  dseacpSample = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  dseacpRmse(run, :) = dseacpSample.RMSE;
 
   waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
@@ -51,17 +59,21 @@ close(h)
 %% Plotting
 
 if true
-% if false
+  % if false
   plotNetwork(netGraph, maxLength);
 
   mdlSample.plotTrajectory();
   mdlSample.plotOutputs();
 
   ckfSample.plotTrajectory(mdlSample.X);
+  dseacpSample.plotTrajectory(mdlSample.X);
 
   figure
   t = (0:T) * Ts;
   semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
+  hold on;
+  semilogy(t, mean(dseacpRmse, 1), 'DisplayName', 'DSEA-CP (L=3)');
+  hold off;
   title("RMSE vs Time");
   xlabel('Time (s)');
   ylabel('RMSE');
