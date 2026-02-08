@@ -20,7 +20,7 @@ consensusSteps = 3;
 
 %% Network Definition
 
-[netGraph] = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
 %% Model Simulation
 

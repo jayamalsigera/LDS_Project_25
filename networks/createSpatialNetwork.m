@@ -20,7 +20,7 @@
 % - G - A `digraph` object representing the Network. Use `G.Nodes` to access
 %  node metadata, like their coordinates and whether they're a sensor or not.
 %
-function [G] = createSpatialNetwork(N, S, maxLength)
+function G = createSpatialNetwork(N, S, maxLength)
   % Place nodes
   nodeCoordinates = rand(N, 2) * maxLength;
 
