@@ -31,7 +31,7 @@ plant.simulate(x0);
 x0_hat = x0;
 P0 = diag([1e2 1e2 1e6 1e6]);
 
-ckf = CKF(plant, T);
+ckf = CKF(plant, Ts, T);
 ckf.run(x0_hat, P0);
 
 %% Plotting
@@ -42,3 +42,4 @@ plant.plotTrajectory();
 plant.plotOutputs();
 
 ckf.plotTrajectory();
+ckf.plotRmse();

@@ -1,6 +1,7 @@
 %% Centralized Kalman Filter (CKF) - Information form
 classdef CKF < handle
   properties
+    Ts
     T
     % Information Pair history
     q % n x (T+1)
@@ -14,11 +15,14 @@ classdef CKF < handle
     % Precomputed measurement info term
     CtRinvC
     n
+    % Stats
+    RMSE
   end
 
   methods
-    function self = CKF(plant, T)
+    function self = CKF(plant, Ts, T)
       self.plant = plant;
+      self.Ts = Ts;
       self.T = T;
 
       self.Q = plant.B * plant.B';
@@ -70,6 +74,9 @@ classdef CKF < handle
         self.q(:, t) = q_upd;
         self.Omega(:, :, t) = Omega_upd;
       end
+
+      error = self.x_hat - self.plant.X;
+      self.RMSE = sqrt(mean(error .^ 2, 1));
     end
 
     function plotTrajectory(self)
@@ -83,6 +90,16 @@ classdef CKF < handle
       ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
       legend({"CKF", "Actual Model"})
       grid()
+    end
+
+    function plotRmse(self)
+      figure
+      t = (0:self.T) * self.Ts;
+      semilogy(t, self.RMSE);
+      title("RMSE vs Time");
+      xlabel('Time (s)');
+      ylabel('RMSE');
+      grid();
     end
   end
 end
