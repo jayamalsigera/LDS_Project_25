@@ -8,8 +8,7 @@ classdef CKF < handle
     % State estimate history
     x_hat % n x (T+1)
     % Model Matrices
-    A
-    C
+    plant
     Q
     R
     % Precomputed measurement info term
@@ -19,10 +18,8 @@ classdef CKF < handle
 
   methods
     function self = CKF(plant, T)
+      self.plant = plant;
       self.T = T;
-
-      self.A = plant.A;
-      self.C = plant.C;
 
       self.Q = plant.B * plant.B';
       self.R = plant.D * plant.D';
@@ -34,29 +31,26 @@ classdef CKF < handle
       self.x_hat = zeros(self.n, T + 1);
 
       % Precompute C'R^{-1}C (R constant)
-      self.CtRinvC = self.C' * (self.R \ self.C);
-
+      self.CtRinvC = plant.C' * (self.R \ plant.C);
     end
 
     function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
       x_prev = Omega_prev \ q_prev;
       P_prev = Omega_prev \ eye(self.n);
 
-      x_pred = self.A * x_prev;
-      P_pred = self.A * P_prev * self.A' + self.Q;
+      x_pred = self.plant.A * x_prev;
+      P_pred = self.plant.A * P_prev * self.plant.A' + self.Q;
 
       Omega_pred = P_pred \ eye(self.n);
       q_pred = Omega_pred * x_pred;
     end
 
-    function [x_upd, q_upd, Omega_upd] = measurement(self, y_t, q_pred, Omega_pred)
+    function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
       Omega_upd = Omega_pred + self.CtRinvC;
-      q_upd = q_pred + self.C' * (self.R \ y_t);
-
-      x_upd = Omega_upd \ q_upd;
+      q_upd = q_pred + self.plant.C' * (self.R \ y_t);
     end
 
-    function self = run(self, x0_hat, P0, Y)
+    function run(self, x0_hat, P0)
       self.Omega(:, :, 1) = P0 \ eye(self.n); % inv(P0)
       self.q(:, 1) = self.Omega(:, :, 1) * x0_hat;
       self.x_hat(:, 1) = x0_hat;
@@ -68,10 +62,11 @@ classdef CKF < handle
         q_prev = self.q(:, t_prev);
 
         [q_pred, Omega_pred] = self.prediction(q_prev, Omega_prev);
-        [x_upd, q_upd, Omega_upd] = self.measurement(Y(:, t - 1), q_pred, Omega_pred);
 
-        % store
-        self.x_hat(:, t) = x_upd;
+        y = self.plant.Y(:, t);
+        [q_upd, Omega_upd] = self.update(y, q_pred, Omega_pred);
+
+        self.x_hat(:, t) = Omega_upd \ q_upd;
         self.q(:, t) = q_upd;
         self.Omega(:, :, t) = Omega_upd;
       end

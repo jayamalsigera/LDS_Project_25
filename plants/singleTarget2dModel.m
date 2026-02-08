@@ -5,11 +5,12 @@
 % Parameters:
 % - Ts - Sampling Period
 % - S - Number of Sensors
+% - T - Simulation Steps
 %
 % Returns:
 % - plant - The state space model representing the full plant
 %
-function [plant] = singleTarget2dModel(Ts, S)
+function [plant] = singleTarget2dModel(Ts, S, T)
   Ac = [zeros(2) zeros(2); eye(2) zeros(2)];
   Bc = eye(4);
 
@@ -24,5 +25,5 @@ function [plant] = singleTarget2dModel(Ts, S)
   C = [repmat(C_i_a, S/2, 1); repmat(C_i_b, S - S/2, 1)];
   D = D_i * eye(2 * S);
 
-  plant = SSModel(sysd.A, sysd.B, C, D);
+  plant = SSModel(sysd.A, sysd.B, C, D, T);
 end
