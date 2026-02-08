@@ -71,5 +71,18 @@ classdef CKF < handle
         self.Omega(:, :, t) = Omega_upd;
       end
     end
+
+    function plotTrajectory(self)
+      figure
+      plot(self.x_hat(3, :), self.x_hat(4, :));
+      hold on
+      plot(self.plant.X(3, :), self.plant.X(4, :));
+      hold off
+      title("CKF Estimated Trajectory")
+      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
+      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
+      legend({"CKF", "Actual Model"})
+      grid()
+    end
   end
 end
