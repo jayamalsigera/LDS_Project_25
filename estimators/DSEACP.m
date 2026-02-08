@@ -5,6 +5,7 @@ classdef DSEACP
     T
     % Network Graph and Parameters
     G
+    W
     L
     % Information Pair history
     q % n x (T+1)
@@ -27,6 +28,8 @@ classdef DSEACP
       self.T = T;
       self.G = G;
       self.L = L;
+
+      self.W = calcMetropolisWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;

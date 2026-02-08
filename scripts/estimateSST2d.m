@@ -37,7 +37,8 @@ dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 
 %% Monte Carlo simulations
 
-totalRuns = 200;
+% totalRuns = 200;
+totalRuns = 1;
 
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
@@ -58,8 +59,8 @@ close(h)
 
 %% Plotting
 
-if true
-  % if false
+% if true
+if false
   plotNetwork(netGraph, maxLength);
 
   mdlSample.plotTrajectory();
