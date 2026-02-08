@@ -6,51 +6,65 @@ rng(42);
 
 %% Parameters
 
-steps = 1000;
-Ts = 0.1;
+T = 1000; % Number of Simulation Steps
+Ts = 0.1; % Sampling Period
+outputNoiseStd = 10;
 
-x0 = [14 14 1800 2000]';  % v_x, v_y, p_x, p_y
+x0 = [14 14 1800 2000]'; % v_x, v_y, p_x, p_y
 
 nodeCount = 100;
 sensorCount = 20;
 maxLength = 5000;
 
-%% Plant Definition
+%% Network Definition
 
 [netGraph] = createSpatialNetwork(nodeCount, sensorCount, maxLength);
-plant = singleTargetTracking2dPlant(Ts, sensorCount);
 
-%% Simulation Loop
+%% Model Simulation
 
-% Initialize vectors for storing states and outputs (include t=0).
-X = zeros(plant.n, steps + 1);
-Y = zeros(plant.p, steps + 1);
+plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
-X(:,1) = x0;
-Y(:,1) = plant.outputEq(x0);
-for t = 2:steps + 1
-  [Y(:,t), X(:,t)] = plant.update(X(:, t-1));
+%% Estimators
+
+% TODO: Review initialization
+x0_hat = x0;
+P0 = diag([1e2 1e2 1e6 1e6]);
+
+ckf = CKF(plant, Ts, T);
+
+%% Monte Carlo simulations
+
+totalRuns = 200;
+
+ckfRmse = zeros(totalRuns, T + 1);
+h = waitbar(0, 'Running simulations');
+for run = 1:totalRuns
+  mdlSample = plant.simulate(x0);
+
+  ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  ckfRmse(run, :) = ckfSample.RMSE;
+
+  waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
+close(h)
 
 %% Plotting
 
-plotNetwork(netGraph, maxLength);
+if true
+% if false
+  plotNetwork(netGraph, maxLength);
 
-figure
-plot(X(3, :), X(4, :));
-title("Simulated Trajectory (State)")
-xlabel('$p_x$', 'Interpreter', 'latex');
-ylabel('$p_y$', 'Interpreter', 'latex');
-grid()
-xlim([0, maxLength]);
-ylim([0, maxLength]);
+  mdlSample.plotTrajectory();
+  mdlSample.plotOutputs();
 
-figure
-t = (0:steps) * Ts;
-subplot(2, 1, 1)
-plot(t, Y(1:2,:)');
-title("Simulated Output of Sensor 1")
-subplot(2, 1, 2)
-plot(t, Y(39:40,:)');
-title("Simulated Output of Sensor 20")
-xlabel('Time (s)');
+  ckfSample.plotTrajectory(mdlSample.X);
+
+  figure
+  t = (0:T) * Ts;
+  semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
+  title("RMSE vs Time");
+  xlabel('Time (s)');
+  ylabel('RMSE');
+  legend();
+  grid();
+end
