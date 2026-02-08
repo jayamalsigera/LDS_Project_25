@@ -32,16 +32,39 @@ P0 = diag([1e2 1e2 1e6 1e6]);
 
 ckf = CKF(plant, Ts, T);
 
-%% Monte Carlo simulation
+%% Monte Carlo simulations
 
-mdlSample = plant.simulate(x0);
-ckfSample = ckf.run(x0_hat, P0, mdlSample.X, mdlSample.Y);
+totalRuns = 200;
+
+ckfRmse = zeros(totalRuns, T + 1);
+h = waitbar(0, 'Running simulations');
+for run = 1:totalRuns
+  mdlSample = plant.simulate(x0);
+
+  ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  ckfRmse(run, :) = ckfSample.RMSE;
+
+  waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
+end
+close(h)
 
 %% Plotting
 
-plotNetwork(netGraph, maxLength);
+if true
+% if false
+  plotNetwork(netGraph, maxLength);
 
-mdlSample.plotTrajectory();
-mdlSample.plotOutputs();
+  mdlSample.plotTrajectory();
+  mdlSample.plotOutputs();
 
-ckfSample.plotTrajectory(mdlSample.X);
+  ckfSample.plotTrajectory(mdlSample.X);
+
+  figure
+  t = (0:T) * Ts;
+  semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
+  title("RMSE vs Time");
+  xlabel('Time (s)');
+  ylabel('RMSE');
+  legend();
+  grid();
+end

@@ -1,8 +1,11 @@
-%% Centralized Kalman Filter (CKF) - Information form
-classdef CKF
+%% Distributed State Estimation Algorithm with Consensus on the Posteriors (DSEA-CP)
+classdef DSEACP
   properties
     Ts
     T
+    % Network Graph and Parameters
+    G
+    L
     % Information Pair history
     q % n x (T+1)
     Omega % n x n x (T+1)
@@ -14,16 +17,16 @@ classdef CKF
     Q
     R
     n
-    % Precomputed measurement info term
-    CtRinvC
     % Stats
     RMSE
   end
 
   methods
-    function self = CKF(plant, Ts, T)
+    function self = DSEACP(plant, G, L, Ts, T)
       self.Ts = Ts;
       self.T = T;
+      self.G = G;
+      self.L = L;
 
       self.A = plant.A;
       self.C = plant.C;
@@ -36,8 +39,6 @@ classdef CKF
       self.q = zeros(self.n, T + 1);
       self.x_hat = zeros(self.n, T + 1);
 
-      % Precompute C'R^{-1}C (R constant)
-      self.CtRinvC = self.C' * (self.R \ self.C);
     end
 
     function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
@@ -86,10 +87,10 @@ classdef CKF
       hold on
       plot(X(3, :), X(4, :));
       hold off
-      title("CKF Estimated Trajectory")
+      title("DSEA-CP Estimated Trajectory")
       xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
       ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"CKF", "Actual Model"})
+      legend({"DSEA-CP", "Actual Model"})
       grid()
     end
   end
