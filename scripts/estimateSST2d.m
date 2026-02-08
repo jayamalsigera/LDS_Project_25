@@ -6,14 +6,17 @@ rng(42);
 
 %% Parameters
 
-T = 1000; % Number of Simulation Steps
+% T = 1000; % Number of Simulation Steps
+T = 100; % Number of Simulation Steps
 Ts = 0.1; % Sampling Period
 outputNoiseStd = 10;
 
 x0 = [14 14 1800 2000]'; % v_x, v_y, p_x, p_y
 
-nodeCount = 100;
-sensorCount = 20;
+% nodeCount = 100;
+nodeCount = 10;
+% sensorCount = 20;
+sensorCount = 2;
 maxLength = 5000;
 
 consensusSteps = 3;
@@ -43,19 +46,19 @@ totalRuns = 1;
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
 
-h = waitbar(0, 'Running simulations');
+% h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
   mdlSample = plant.simulate(x0);
 
   ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
   ckfRmse(run, :) = ckfSample.RMSE;
 
-  dseacpSample = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  dseacpSample = dseacp.estimate(x0_hat, mdlSample.X, mdlSample.Y);
   dseacpRmse(run, :) = dseacpSample.RMSE;
 
-  waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
+  % waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
-close(h)
+% close(h)
 
 %% Plotting
 

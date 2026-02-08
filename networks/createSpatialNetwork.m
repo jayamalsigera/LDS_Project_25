@@ -31,7 +31,7 @@ function G = createSpatialNetwork(N, S, maxLength)
   connectionRadius = 0.12 * maxLength;
   A = sparse(distances < connectionRadius);
 
-  A(1:N + 1:end) = 0; % Remove self-loops
+  A(1:N + 1:end) = 1; % Ensure self-loops
 
   % Iteratively connect isolated nodes/small clusters until fully connected
   G = graph(A);
