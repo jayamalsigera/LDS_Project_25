@@ -6,7 +6,7 @@
 % - Ts - Sampling Period
 % - S - Number of Sensors
 % - T - Simulation Steps
-classdef SingleTarget2dModel < handle
+classdef SingleTarget2dModel
   properties
     Ts
     A
@@ -26,16 +26,6 @@ classdef SingleTarget2dModel < handle
     function self = SingleTarget2dModel(Ts, S, noiseStd, T)
       self.Ts = Ts;
 
-      self.initStateEquation(Ts)
-      self.initOutputEquation(S, noiseStd)
-
-      % Initialize state and output history
-      self.T = T;
-      self.X = zeros(self.n, T + 1);
-      self.Y = zeros(self.p, T + 1);
-    end
-
-    function initStateEquation(self, Ts)
       Ac = [zeros(2) zeros(2); eye(2) zeros(2)];
       Bc = eye(4);
 
@@ -47,9 +37,7 @@ classdef SingleTarget2dModel < handle
 
       self.n = size(self.A, 1);
       self.m = size(self.B, 2);
-    end
 
-    function initOutputEquation(self, S, noiseStd)
       C_i_a = [0 0 1 0; 0 0 0 0];  % Some sensors just measure p_x
       C_i_b = [0 0 0 0; 0 0 0 1];  % Some sensors just measure p_y
       self.C = [repmat(C_i_a, S/2, 1); repmat(C_i_b, S - S/2, 1)];
@@ -59,6 +47,11 @@ classdef SingleTarget2dModel < handle
       self.D = D_i * eye(2 * S);
 
       self.p = size(self.C, 1);
+
+      % Initialize state and output history
+      self.T = T;
+      self.X = zeros(self.n, T + 1);
+      self.Y = zeros(self.p, T + 1);
     end
 
     function x_t = stateEq(self, x_prev)
@@ -71,7 +64,7 @@ classdef SingleTarget2dModel < handle
       y_t = self.C * x_t + self.D * v_t;
     end
 
-    function simulate(self, x0)
+    function self = simulate(self, x0)
       self.X(:, 1) = x0;
       self.Y(:, 1) = self.outputEq(x0);
       for t = 2:self.T + 1

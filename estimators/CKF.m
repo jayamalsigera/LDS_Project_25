@@ -1,5 +1,5 @@
 %% Centralized Kalman Filter (CKF) - Information form
-classdef CKF < handle
+classdef CKF
   properties
     Ts
     T
@@ -9,7 +9,8 @@ classdef CKF < handle
     % State estimate history
     x_hat % n x (T+1)
     % Model Matrices
-    plant
+    A
+    C
     Q
     R
     % Precomputed measurement info term
@@ -21,10 +22,11 @@ classdef CKF < handle
 
   methods
     function self = CKF(plant, Ts, T)
-      self.plant = plant;
       self.Ts = Ts;
       self.T = T;
 
+      self.A = plant.A;
+      self.C = plant.C;
       self.Q = plant.B * plant.B';
       self.R = plant.D * plant.D';
 
@@ -35,15 +37,15 @@ classdef CKF < handle
       self.x_hat = zeros(self.n, T + 1);
 
       % Precompute C'R^{-1}C (R constant)
-      self.CtRinvC = plant.C' * (self.R \ plant.C);
+      self.CtRinvC = self.C' * (self.R \ self.C);
     end
 
     function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
       x_prev = Omega_prev \ q_prev;
       P_prev = Omega_prev \ eye(self.n);
 
-      x_pred = self.plant.A * x_prev;
-      P_pred = self.plant.A * P_prev * self.plant.A' + self.Q;
+      x_pred = self.A * x_prev;
+      P_pred = self.A * P_prev * self.A' + self.Q;
 
       Omega_pred = P_pred \ eye(self.n);
       q_pred = Omega_pred * x_pred;
@@ -51,10 +53,10 @@ classdef CKF < handle
 
     function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
       Omega_upd = Omega_pred + self.CtRinvC;
-      q_upd = q_pred + self.plant.C' * (self.R \ y_t);
+      q_upd = q_pred + self.C' * (self.R \ y_t);
     end
 
-    function run(self, x0_hat, P0)
+    function self = run(self, x0_hat, P0, X, Y)
       self.Omega(:, :, 1) = P0 \ eye(self.n); % inv(P0)
       self.q(:, 1) = self.Omega(:, :, 1) * x0_hat;
       self.x_hat(:, 1) = x0_hat;
@@ -67,7 +69,7 @@ classdef CKF < handle
 
         [q_pred, Omega_pred] = self.prediction(q_prev, Omega_prev);
 
-        y = self.plant.Y(:, t);
+        y = Y(:, t);
         [q_upd, Omega_upd] = self.update(y, q_pred, Omega_pred);
 
         self.x_hat(:, t) = Omega_upd \ q_upd;
@@ -75,15 +77,15 @@ classdef CKF < handle
         self.Omega(:, :, t) = Omega_upd;
       end
 
-      error = self.x_hat - self.plant.X;
+      error = self.x_hat - X;
       self.RMSE = sqrt(mean(error .^ 2, 1));
     end
 
-    function plotTrajectory(self)
+    function plotTrajectory(self, X)
       figure
       plot(self.x_hat(3, :), self.x_hat(4, :));
       hold on
-      plot(self.plant.X(3, :), self.plant.X(4, :));
+      plot(X(3, :), X(4, :));
       hold off
       title("CKF Estimated Trajectory")
       xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
