@@ -10,7 +10,7 @@ classdef DSEACP
     N
     S
     % State estimate history
-    x_hat
+    X_hat
     % Model Matrices
     A
     C
@@ -40,7 +40,7 @@ classdef DSEACP
 
       self.n = plant.n;
 
-      self.x_hat = zeros(self.n, self.N, T + 1);
+      self.X_hat = zeros(self.n, self.N, T + 1);
     end
 
     function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
@@ -49,16 +49,18 @@ classdef DSEACP
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
-          y_i = y(i:i + 1);
-          C_i = self.C(i:i + 1, :);
-          R_i = self.R(i:i + 1, i:i + 1); % We can do this since D is block diagonal
+          idx = (2 * i - 1):(2 * i);
+
+          y_i = y(idx);
+          C_i = self.C(idx, :);
+          R_i = self.R(idx, idx); % R (block) diagonal since D (block) diagonal
 
           q_upd(:, i) = q_pred(:, i) + C_i' * (R_i \ y_i);
+          Omega_upd(:, :, i) = Omega_pred(:, :, i) + C_i' * (R_i \ C_i);
         else
           q_upd(:, i) = q_pred(:, i);
+          Omega_upd(:, :, i) = Omega_pred(:, :, i);
         end
-
-        Omega_upd(:, :, i) = Omega_pred(:, :, i) + C_i' * (R_i \ C_i);
       end
     end
 
@@ -104,7 +106,7 @@ classdef DSEACP
         % TODO: Review/Cleanup
         I = eye(self.n);
         foo = inv(Omega_i + self.A' * (self.Q \ self.A));
-        bar = self.A' \ (Omega_i * self.A');
+        bar = self.A' \ (Omega_i / self.A);
         baz = self.A' \ Omega_i;
 
         q_pred(:, i) = self.A' \ ((I - Omega_i * foo) * q_i);
@@ -113,13 +115,21 @@ classdef DSEACP
 
     end
 
+    function [rmse] = calculateRSME(self, X_hat, X)
+      rmse = zeros(self.T+1, 1);
+      for t = 1:self.T
+        err = X_hat(:, :, t) - X(:, t); % implicit expansion over N
+        rmse(t) = sqrt(mean(sum(err .^ 2, 1)));
+      end
+    end
+
     function self = estimate(self, x0_hat, X, Y)
       % Initializing from 0 (no prior knowledge), since it's unrealistic to
       % assume all nodes share same one. (Battistelli & Chisci, 2014)
-      q_pred = zeros(self.n, self.N);  % q_{0|-1}
+      q_pred = zeros(self.n, self.N); % q_{0|-1}
       Omega_pred = zeros(self.n, self.n, self.N);
 
-      self.x_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
+      self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
 
       for t = 2:self.T + 1
         y = Y(:, t);
@@ -128,18 +138,30 @@ classdef DSEACP
         [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd);
         [q_pred, Omega_pred] = self.prediction(q_fused, Omega_fused);
 
-        disp(q_upd)
-        disp(Omega_upd)
+        % Pack `q_pred` vectors page-wise to compute state estimation for
+        % each node without a for loop.
+        % B = reshape(q_pred, self.n, 1, self.N);
+        % % Use `pagelsqminnorm` which is similar to using the Moore-Penrose
+        % % pseudo inversion but page-wise.
+        % x_nodes = pagelsqminnorm(Omega_pred, B);
+        % self.X_hat(:, :, t) = reshape(x_nodes, self.n, self.N);
 
-        self.x_hat(:, t) = Omega_upd \ q_upd;
+        for i = 1:self.N
+          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
+        end
       end
 
-      self.RMSE = vecnorm(self.x_hat - X);
+      self.RMSE = self.calculateRSME(self.X_hat, X);
     end
 
     function plotTrajectory(self, X)
+      % TODO: Would be cool if we could plot P(t) somehow
+      % TODO: Restrict axis to ranges of X
+
+      meanX_hat = mean(self.X_hat, 2);
+
       figure
-      plot(self.x_hat(3, :), self.x_hat(4, :));
+      plot(meanX_hat(3, :), meanX_hat(4, :));
       hold on
       plot(X(3, :), X(4, :));
       hold off

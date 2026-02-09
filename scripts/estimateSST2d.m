@@ -7,33 +7,42 @@ rng(42);
 %% Parameters
 
 % T = 1000; % Number of Simulation Steps
-T = 100; % Number of Simulation Steps
+T = 200; % Number of Simulation Steps
+% T = 10; % Number of Simulation Steps
 Ts = 0.1; % Sampling Period
 outputNoiseStd = 10;
 
-x0 = [14 14 1800 2000]'; % v_x, v_y, p_x, p_y
+x0 = [50 50 1800 2000]'; % v_x, v_y, p_x, p_y
 
 % nodeCount = 100;
-nodeCount = 10;
 % sensorCount = 20;
-sensorCount = 2;
+nodeCount = 20;
+sensorCount = 4;
+
 maxLength = 5000;
 
 consensusSteps = 3;
+% consensusSteps = 50;
 
 %% Network Definition
 
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
+% TODO: Connectivity check
+% TODO: A doubly stochastic check
+
 %% Model Simulation
 
 plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
+% TODO: Stabilizability check
+% TODO: Detectability (or Observability?) check
+
 %% Estimators
 
 % TODO: Review initialization
-x0_hat = x0;
-P0 = eye(size(x0, 1));
+x0_hat = zeros(4, 1);
+P0 = 1e12 * eye(size(x0, 1));
 
 ckf = CKF(plant, Ts, T);
 dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
@@ -41,12 +50,14 @@ dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 %% Monte Carlo simulations
 
 % totalRuns = 200;
-totalRuns = 1;
+totalRuns = 100;
+% totalRuns = 10;
+% totalRuns = 1;
 
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
 
-% h = waitbar(0, 'Running simulations');
+h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
   mdlSample = plant.simulate(x0);
 
@@ -56,14 +67,14 @@ for run = 1:totalRuns
   dseacpSample = dseacp.estimate(x0_hat, mdlSample.X, mdlSample.Y);
   dseacpRmse(run, :) = dseacpSample.RMSE;
 
-  % waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
+  waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
-% close(h)
+close(h)
 
 %% Plotting
 
-% if true
-if false
+if true
+% if false
   plotNetwork(netGraph, maxLength);
 
   mdlSample.plotTrajectory();
