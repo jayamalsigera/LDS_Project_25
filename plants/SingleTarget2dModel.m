@@ -44,7 +44,7 @@ classdef SingleTarget2dModel
 
       D_i = noiseStd^2;
 
-      self.D = D_i * eye(2 * S);
+      self.D = D_i * eye(2 * S);  % TODO: Should the velocity have noise too?
 
       self.p = size(self.C, 1);
 
@@ -91,7 +91,7 @@ classdef SingleTarget2dModel
       plot(t, self.Y(1:2, :)');
       title("Simulated Output of Sensor 1")
       subplot(2, 1, 2)
-      plot(t, self.Y(39:40, :)');
+      plot(t, self.Y(end-1:end, :)');
       title("Simulated Output of Sensor 20")
       xlabel('Time (s)');
     end
