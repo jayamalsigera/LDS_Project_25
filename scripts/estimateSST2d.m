@@ -6,43 +6,66 @@ rng(42);
 
 %% Parameters
 
-T = 1000; % Number of Simulation Steps
+% T = 1000; % Number of Simulation Steps
+T = 200; % Number of Simulation Steps
+% T = 10; % Number of Simulation Steps
 Ts = 0.1; % Sampling Period
 outputNoiseStd = 10;
 
-x0 = [14 14 1800 2000]'; % v_x, v_y, p_x, p_y
+x0 = [50 50 1800 2000]'; % v_x, v_y, p_x, p_y
 
-nodeCount = 100;
-sensorCount = 20;
+% nodeCount = 100;
+% sensorCount = 20;
+nodeCount = 20;
+sensorCount = 4;
+
 maxLength = 5000;
+
+consensusSteps = 3;
+% consensusSteps = 50;
 
 %% Network Definition
 
-[netGraph] = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+
+% TODO: Connectivity check
+% TODO: A doubly stochastic check
 
 %% Model Simulation
 
 plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
+% TODO: Stabilizability check
+% TODO: Detectability (or Observability?) check
+
 %% Estimators
 
 % TODO: Review initialization
-x0_hat = x0;
-P0 = diag([1e2 1e2 1e6 1e6]);
+x0_hat = zeros(4, 1);
+P0 = 1e12 * eye(size(x0, 1));
 
 ckf = CKF(plant, Ts, T);
+dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 
 %% Monte Carlo simulations
 
-totalRuns = 200;
+% totalRuns = 200;
+totalRuns = 100;
+% totalRuns = 10;
+% totalRuns = 1;
 
 ckfRmse = zeros(totalRuns, T + 1);
+dseacpRmse = zeros(totalRuns, T + 1);
+
 h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
   mdlSample = plant.simulate(x0);
 
   ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
   ckfRmse(run, :) = ckfSample.RMSE;
+
+  dseacpSample = dseacp.estimate(x0_hat, mdlSample.X, mdlSample.Y);
+  dseacpRmse(run, :) = dseacpSample.RMSE;
 
   waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
@@ -58,10 +81,14 @@ if true
   mdlSample.plotOutputs();
 
   ckfSample.plotTrajectory(mdlSample.X);
+  dseacpSample.plotTrajectory(mdlSample.X);
 
   figure
   t = (0:T) * Ts;
   semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
+  hold on;
+  semilogy(t, mean(dseacpRmse, 1), 'DisplayName', 'DSEA-CP (L=3)');
+  hold off;
   title("RMSE vs Time");
   xlabel('Time (s)');
   ylabel('RMSE');

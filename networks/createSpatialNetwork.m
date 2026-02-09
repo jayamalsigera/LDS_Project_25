@@ -20,7 +20,7 @@
 % - G - A `digraph` object representing the Network. Use `G.Nodes` to access
 %  node metadata, like their coordinates and whether they're a sensor or not.
 %
-function [G] = createSpatialNetwork(N, S, maxLength)
+function G = createSpatialNetwork(N, S, maxLength)
   % Place nodes
   nodeCoordinates = rand(N, 2) * maxLength;
 
@@ -31,37 +31,40 @@ function [G] = createSpatialNetwork(N, S, maxLength)
   connectionRadius = 0.12 * maxLength;
   A = sparse(distances < connectionRadius);
 
-  A(1:N+1:end) = 0;  % Remove self-loops
+  A(1:N + 1:end) = 1; % Ensure self-loops
 
   % Iteratively connect isolated nodes/small clusters until fully connected
   G = graph(A);
   bins = conncomp(G);
   numBins = max(bins);
-  while numBins > 1  % While Graph is NOT fully connected
-      selectedBin = max(bins);
+  while numBins > 1 % While Graph is NOT fully connected
+    selectedBin = max(bins);
 
-      % Isolate the bin nodes from the rest of the nodes
-      binNodes = find(bins == selectedBin);
-      otherNodes = find(bins ~= selectedBin);
+    % Isolate the bin nodes from the rest of the nodes
+    binNodes = find(bins == selectedBin);
+    otherNodes = find(bins ~= selectedBin);
 
-      distancesToOtherNodes = distances(binNodes, otherNodes);
-      [minDist, linearIdx] = min(distancesToOtherNodes(:));
+    distancesToOtherNodes = distances(binNodes, otherNodes);
+    [minDist, linearIdx] = min(distancesToOtherNodes(:));
 
-      [rowIdx, colIdx] = ind2sub(size(distancesToOtherNodes), linearIdx);
+    [rowIdx, colIdx] = ind2sub(size(distancesToOtherNodes), linearIdx);
 
-      closestBinNode = binNodes(rowIdx);
-      closestOtherNode = otherNodes(colIdx);
+    closestBinNode = binNodes(rowIdx);
+    closestOtherNode = otherNodes(colIdx);
 
-      G = addedge(G, closestBinNode, closestOtherNode);
+    G = addedge(G, closestBinNode, closestOtherNode);
 
-      bins = conncomp(G);
-      numBins = max(bins);
+    bins = conncomp(G);
+    numBins = max(bins);
   end
 
   % Graph Metadata
   xCoordinates = nodeCoordinates(:, 1);
   yCoordinates = nodeCoordinates(:, 2);
-  isSensor = ismember(1:N, randperm(N, S))';
+
+  % Consider the first S nodes as sensors and the rest as regular
+  % This makes it easier to match their index with the ones in the SSM output
+  isSensor = [true(S, 1); false(N - S, 1)];
 
   % TODO: A bit of redundancy in the coordinates for now. Need to decide which
   % representation is more convenient outside of the function.

@@ -81,6 +81,9 @@ classdef CKF
     end
 
     function plotTrajectory(self, X)
+      % TODO: Would be cool if we could plot P(t) somehow
+      % TODO: Restrict axis to ranges of X
+
       figure
       plot(self.x_hat(3, :), self.x_hat(4, :));
       hold on
