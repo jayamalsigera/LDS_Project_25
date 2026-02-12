@@ -1,15 +1,18 @@
-%% Distributed State Estimation Algorithm with Consensus on the Posteriors (DSEA-CP)
+%% Distributed Kalman Filter
 %
-% Implementation based on Battistelli & Chisci (2014).
+% Implementation based on Battistelli, et. all (2018).
 %
-classdef DSEACP
+classdef DKF
   properties
     Ts
     T
+    % Tunning Parameters
+    alpha
+    beta
+    delta
     % Network Graph and Parameters
     G
     W
-    L
     N
     S
     % State estimate history
@@ -22,14 +25,18 @@ classdef DSEACP
     n
     % Stats
     RMSE
+    txRate
   end
 
   methods
-    function self = DSEACP(plant, Ts, T, G, L)
+    function self = DKF(plant, Ts, T, G, alpha, beta, delta)
       self.Ts = Ts;
       self.T = T;
       self.G = G;
-      self.L = L;
+
+      self.alpha = alpha;
+      self.beta = beta;
+      self.delta = delta;
 
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
@@ -44,8 +51,13 @@ classdef DSEACP
       self.n = plant.n;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
+
+      self.txRate = zeros(self.N, 1);
     end
 
+    %% Correction/Update/Measurement step
+    % Update the local information pair to obtain q_k|k and Omega_k|k of each
+    % node
     function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
       q_upd = zeros(self.n, self.N);
       Omega_upd = zeros(self.n, self.n, self.N);
@@ -67,36 +79,47 @@ classdef DSEACP
       end
     end
 
-    %% Information Pair Fusion via Consensus Algorithm
-    function [q_fused, Omega_fused] = fusion(self, q_upd, Omega_upd)
-      q_cons = zeros(self.n, self.N, self.L);
-      Omega_cons = zeros(self.n, self.n, self.N, self.L);
+    %% Information Exchange
+    % While we don't have to transmit anything, in this step we're calculating
+    % c^i_t for all nodes.
+    function c_t = exchange(self, X_hat, Omega_upd, x_bar, Omega_bar)
+      c_t = ones(self.N, 1);
+      for i = 1:self.N
+        Omega_i = Omega_upd(:, :, i);
 
-      q_cons(:, :, 1) = q_upd;
-      Omega_cons(:, :, :, 1) = Omega_upd;
+        e = X_hat(:, i) - x_bar(:, i);  % Discrepancy from Prediction since last transmission
+        eNorm = e' * Omega_i * e;  % Weighted Euclidean Norm
 
-      for l = 2:self.L
+        lower = ( 1 / (1 + self.beta)) * Omega_i;
+        upper = (1 + self.delta) * Omega_i;
 
-        for i = 1:self.N
-          [~, nids] = inedges(self.G, i);
-
-          % TODO: Check if this is covering the self loop
-          for j = nids'
-            q_j = q_cons(:, j, l - 1);
-            Omega_j = Omega_cons(:, :, j, l - 1);
-
-            w_ij = self.W(i, j);
-
-            q_cons(:, i, l) = q_cons(:, i, l) + w_ij * q_j;
-            Omega_cons(:, :, i, l) = Omega_cons(:, :, i, l) + w_ij * Omega_j;
-          end
-
+        if eNorm < self.alpha &&  isPSD(Omega_bar - lower) && isPSD(upper - Omega_bar)
+          c_t(1) = 0;
         end
 
       end
+    end
 
-      q_fused = q_cons(:, :, end);
-      Omega_fused = Omega_cons(:, :, :, end);
+    %% Information Pair Fusion
+    function [q_fused, Omega_fused] = fusion(self, q_upd, Omega_upd, c_t)
+      q_fused = zeros(self.n, self.N);
+      Omega_fused = zeros(self.n, self.n, self.N);
+
+      for i = 1:self.N
+        [~, nids] = inedges(self.G, i);
+
+        for j = nids'
+          w_ij = self.W(i, j);
+
+          if i == j || c_t(j)
+            % Node i has received from j or this is a self-loop (node has access to its own local info)
+            q_fused(i) = q_fused(i) + w_ij * q_upd(:, j);
+            Omega_fused(i) = Omega_fused(i) + w_ij * Omega_upd(:, j);
+          else
+            % TODO: Use predictions q_bar / Omega_bar
+          end
+        end
+      end
     end
 
     function [q_pred, Omega_pred] = prediction(self, q_fused, Omega_fused)
@@ -107,7 +130,6 @@ classdef DSEACP
         q_i = q_fused(:, i);
         Omega_i = Omega_fused(:, :, i);
 
-        % TODO: Review/Cleanup
         I = eye(self.n);
         foo = inv(Omega_i + self.A' * (self.Q \ self.A));
         bar = self.A' \ (Omega_i / self.A);
@@ -120,7 +142,7 @@ classdef DSEACP
     end
 
     function [rmse] = calculateRSME(self, X_hat, X)
-      rmse = zeros(self.T+1, 1);
+      rmse = zeros(self.T + 1, 1);
       for t = 1:self.T
         err = X_hat(:, :, t) - X(:, t); % implicit expansion over N
         rmse(t) = sqrt(mean(sum(err .^ 2, 1)));
@@ -133,26 +155,26 @@ classdef DSEACP
       q_pred = zeros(self.n, self.N); % q_{0|-1}
       Omega_pred = zeros(self.n, self.n, self.N);
 
+      c_t = ones(self.N, 1)  % All nodes transmit on first iteration
+
       self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
 
       for t = 2:self.T + 1
         y = Y(:, t);
 
         [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
-        [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd);
+        c_t = self.exchange();
+        [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd, c_t);
         [q_pred, Omega_pred] = self.prediction(q_fused, Omega_fused);
-
-        % Pack `q_pred` vectors page-wise to compute state estimation for
-        % each node without a for loop.
-        % B = reshape(q_pred, self.n, 1, self.N);
-        % % Use `pagelsqminnorm` which is similar to using the Moore-Penrose
-        % % pseudo inversion but page-wise.
-        % x_nodes = pagelsqminnorm(Omega_pred, B);
-        % self.X_hat(:, :, t) = reshape(x_nodes, self.n, self.N);
 
         for i = 1:self.N
           self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
         end
+
+        self.txRate(t) = sum(c_t) / self.N;
+
+        c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, x_bar, Omega_bar);
+
       end
 
       self.RMSE = self.calculateRSME(self.X_hat, X);
@@ -169,10 +191,10 @@ classdef DSEACP
       hold on
       plot(X(3, :), X(4, :));
       hold off
-      title(sprintf("DSEA-CP (L=%d) Estimated Trajectory", self.L))
+      title("DKF Estimated Trajectory")
       xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
       ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"DSEA-CP", "Actual Model"})
+      legend({"DKF", "Actual Model"})
       grid()
     end
   end

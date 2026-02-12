@@ -24,6 +24,10 @@ maxLength = 5000;
 consensusSteps = 3;
 % consensusSteps = 50;
 
+dkfAlpha = 10;
+dkfBeta = 0.2;
+dkfDelta = 0.5;
+
 %% Network Definition
 
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
@@ -46,6 +50,7 @@ P0 = 1e12 * eye(size(x0, 1));
 
 ckf = CKF(plant, Ts, T);
 dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
+dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 
 %% Monte Carlo simulations
 
@@ -56,6 +61,7 @@ totalRuns = 100;
 
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
+dkfRmse = zeros(totalRuns, T + 1);
 
 h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
@@ -66,6 +72,9 @@ for run = 1:totalRuns
 
   dseacpSample = dseacp.estimate(x0_hat, mdlSample.X, mdlSample.Y);
   dseacpRmse(run, :) = dseacpSample.RMSE;
+
+  dkfSample = dkf.estimate(x0_hat, mdlSample.X, mdlSample.Y);
+  dkfRmse(run, :) = dkfSample.RMSE;
 
   waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
@@ -82,12 +91,14 @@ if true
 
   ckfSample.plotTrajectory(mdlSample.X);
   dseacpSample.plotTrajectory(mdlSample.X);
+  dkfSample.plotTrajectory(mdlSample.X);
 
   figure
   t = (0:T) * Ts;
   semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
   hold on;
   semilogy(t, mean(dseacpRmse, 1), 'DisplayName', 'DSEA-CP (L=3)');
+  semilogy(t, mean(dkfRmse, 1), 'DisplayName', 'DKF');
   hold off;
   title("RMSE vs Time");
   xlabel('Time (s)');
