@@ -127,11 +127,12 @@ classdef DSEACP
       end
     end
 
-    function self = estimate(self, x0_hat, X, Y)
-      % Initializing from 0 (no prior knowledge), since it's unrealistic to
-      % assume all nodes share same one. (Battistelli & Chisci, 2014)
-      q_pred = zeros(self.n, self.N); % q_{0|-1}
-      Omega_pred = zeros(self.n, self.n, self.N);
+    function self = estimate(self, x0_hat, P0, X, Y)
+      % It's unrealistic to assume all nodes share same initial conditions
+      % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
+      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
+      q_pred = repmat(P0 \ x0_hat, 1, self.N);
+      Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
       self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
 
