@@ -2,6 +2,7 @@
 
 clear;
 close all;
+clc;
 rng(42);
 
 %% Parameters
@@ -9,6 +10,7 @@ rng(42);
 % T = 1000; % Number of Simulation Steps
 T = 200; % Number of Simulation Steps
 % T = 10; % Number of Simulation Steps
+% T = 2; % Number of Simulation Steps
 Ts = 0.1; % Sampling Period
 outputNoiseStd = 10;
 
@@ -16,7 +18,9 @@ x0 = [50 50 1800 2000]'; % v_x, v_y, p_x, p_y
 
 % nodeCount = 100;
 % sensorCount = 20;
-nodeCount = 20;
+% nodeCount = 20;
+% sensorCount = 4;
+nodeCount = 6;
 sensorCount = 4;
 
 maxLength = 5000;
@@ -46,8 +50,8 @@ plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
 % TODO: Review initialization
 x0_hat = x0;
-% P0 = 1e12 * eye(size(x0, 1));  % No Prior
-P0 = 1e-12 * eye(size(x0, 1));  % "Perfect Knowledge"
+P0 = 1e6 * eye(size(x0, 1));  % No Prior
+% P0 = 1e-6 * eye(size(x0, 1));  % "Perfect Knowledge"
 
 ckf = CKF(plant, Ts, T);
 dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
@@ -57,8 +61,8 @@ dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 
 % totalRuns = 200;
 % totalRuns = 100;
-% totalRuns = 10;
-totalRuns = 1;
+totalRuns = 10;
+% totalRuns = 1;
 
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);

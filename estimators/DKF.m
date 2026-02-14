@@ -58,7 +58,7 @@ classdef DKF
     function self = estimate(self, x0_hat, P0, X, Y)
       % It's unrealistic to assume all nodes share same initial conditions
       % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
-      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
+
       q_pred = repmat(P0 \ x0_hat, 1, self.N);
       Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
@@ -66,23 +66,47 @@ classdef DKF
 
       % Initializing the "global" predictions, assuming c_t = 1 for all nodes in the first
       % iteration (i.e. the first fusion step only relies on the local filtered values).
-      q_bar = zeros(self.n, self.N);
-      Omega_bar = zeros(self.n, self.n, self.N);
+      q_bar = nan(self.n, self.N);
+      Omega_bar = nan(self.n, self.n, self.N);
 
       for t = 2:self.T + 1
         y = Y(:, t);
+        % disp("========= Local Posteriors =========")
         [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
 
+        % disp(q_upd)
+        % disp(Omega_upd)
+
+        % disp("========= STATE =========")
         for i = 1:self.N
           self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
         end
 
-        c_t = self.exchange(t, self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
+        % disp(self.X_hat(:, :, t))
+
+        % disp("========= c^i_t =========")
+        c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
         self.txRate(t) = sum(c_t) / self.N;
 
-        [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd, c_t);
+        % disp(c_t)
+
+        % disp("========= Fused =========")
+        [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
+
+        % disp(q_fused)
+        % disp(Omega_fused)
+
+        % disp("========= Local Priors =========")
         [q_pred, Omega_pred] = self.getLocalPriors(q_fused, Omega_fused);
-        [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_bar, Omega_bar, q_upd, Omega_upd);
+
+        % disp(q_pred)
+        % disp(Omega_pred)
+
+        % disp("========= Global Priors =========")
+        [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
+
+        % disp(q_bar)
+        % disp(Omega_bar)
       end
 
       self.RMSE = self.calculateRSME(self.X_hat, X);
@@ -115,9 +139,10 @@ classdef DKF
     %% Information Exchange
     % While we don't have to transmit anything, in this step we're calculating
     % c^i_t for all nodes.
-    function c_t = exchange(self, t, X_hat, Omega_upd, q_bar, Omega_bar)
+    function c_t = exchange(self, X_hat, Omega_upd, q_bar, Omega_bar)
       c_t = ones(self.N, 1);
-      if t == 1
+      if any(isnan(Omega_bar), "all")
+        % disp("OMEGA_BAR ALL NAN")
         return % Every node transmits on the first iteration
       end
 
@@ -132,15 +157,14 @@ classdef DKF
         lower = (1 / (1 + self.beta)) * Omega_i;
         upper = (1 + self.delta) * Omega_i;
 
-        if eNorm < self.alpha && isPSD(Omega_bar - lower) && isPSD(upper - Omega_bar)
+        if eNorm <= self.alpha && isPSD(Omega_bar(:, :, i) - lower) && isPSD(upper - Omega_bar(:, :, i))
           c_t(1) = 0;
         end
-
       end
     end
 
     %% Information Pair Fusion
-    function [q_fused, Omega_fused] = fusion(self, q_upd, Omega_upd, c_t)
+    function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
       q_fused = zeros(self.n, self.N);
       Omega_fused = zeros(self.n, self.n, self.N);
 
@@ -150,12 +174,18 @@ classdef DKF
         for j = nids'
           w_ij = self.W(i, j);
 
-          if i == j || c_t(j)
+          if (i == j) || c_t(j)
+            % disp(["a" i j double(i == j) c_t(j)])
             % Node i has received from j or this is a self-loop (node has access to its own local info)
             q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, j);
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
           else
-            % TODO: Use predictions q_bar / Omega_bar
+            % disp(["b" i j (i == j) c_t(j)])
+            q_tilda = (1 / (1 + self.delta)) * q_bar(:, j);
+            Omega_tilda = (1 / (1 + self.delta)) * Omega_bar(:, :, j);
+
+            q_fused(:, i) = q_fused(:, i) + w_ij * q_tilda;
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_tilda;
           end
         end
       end
@@ -167,33 +197,41 @@ classdef DKF
       Omega_pred = zeros(self.n, self.n, self.N);
 
       for i = 1:self.N
-        q_i = q_fused(:, i);
-        Omega_i = Omega_fused(:, :, i);
+        q_i_F = q_fused(:, i);
+        Omega_i_F = Omega_fused(:, :, i);
 
-        Omega_pred(:, :, i) = self.updateOmega(Omega_i);
+        Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
 
-        q_pred(:, i) = Omega_pred(:, :, i) * self.A * (Omega_i \ q_i);
+        q_pred(:, i) = Omega_pred(:, :, i) * self.A * (Omega_i_F \ q_i_F);
       end
     end
 
-    function [q_bar, Omega_bar] = updateGlobalPriors(self, c_t, q_bar, Omega_bar, q_upd, Omega_upd)
+    function [q_bar_next, Omega_bar_next] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
+      q_bar_next = zeros(self.n, self.N);
+      Omega_bar_next = zeros(self.n, self.n, self.N);
+
       for i = 1:self.N
-        q_check = c_t(i) * q_upd(:, i) + (1 - c_t(i)) * q_bar(:, i);
-        Omega_check = c_t(i) * Omega_upd(:, :, i) + (1 - c_t(i)) * Omega_bar(:, :, i);
+        if c_t(i)
+          q_i_check = q_upd(:, i);
+          Omega_i_check = Omega_upd(:, :, i);
+        else
+          q_i_check = q_bar(:, i);
+          Omega_i_check = Omega_bar(:, :, i);
+        end
 
-        Omega_bar(:, :, i) = self.updateOmega(Omega_check);
+        Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
 
-        q_bar(:, i) = Omega_bar(:, :, i) * self.A * (Omega_check \ q_check);
+        q_bar_next(:, i) = Omega_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check);
       end
     end
 
     function newOmega = updateOmega(self, Omega)
       invQ = self.Q \ eye(self.n);
-      ATinvQ = self.A' * invQ;
+      invQA = invQ * self.A;
       % TODO: Review variable name
-      foo = (Omega + (ATinvQ * self.A)) \ eye(self.n);
+      foo = (Omega + (self.A' * invQA)) \ eye(self.n);
 
-      newOmega = invQ - ATinvQ' * foo * ATinvQ;
+      newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
     end
 
     %% RMSE Calculation
