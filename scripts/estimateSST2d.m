@@ -28,9 +28,10 @@ maxLength = 5000;
 consensusSteps = 3;
 % consensusSteps = 50;
 
-dkfAlpha = 10;
-dkfBeta = 0.2;
-dkfDelta = 0.5;
+% dkfAlpha = 10;
+dkfAlpha = 1;
+dkfBeta = 30;
+dkfDelta = 30;
 
 %% Network Definition
 
@@ -50,7 +51,7 @@ plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
 % TODO: Review initialization
 x0_hat = x0;
-P0 = 1e6 * eye(size(x0, 1));  % No Prior
+P0 = 1e6 * eye(size(x0, 1)); % No Prior
 % P0 = 1e-6 * eye(size(x0, 1));  % "Perfect Knowledge"
 
 ckf = CKF(plant, Ts, T);
@@ -68,6 +69,8 @@ ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
 dkfRmse = zeros(totalRuns, T + 1);
 
+dkfTxRate = zeros(totalRuns, T + 1);
+
 h = waitbar(0, 'Running simulations');
 for run = 1:totalRuns
   mdlSample = plant.simulate(x0);
@@ -80,6 +83,7 @@ for run = 1:totalRuns
 
   dkfSample = dkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
   dkfRmse(run, :) = dkfSample.RMSE;
+  dkfTxRate(run, :) = dkfSample.txRate;
 
   waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
@@ -88,7 +92,7 @@ close(h)
 %% Plotting
 
 if true
-% if false
+  % if false
   plotNetwork(netGraph, maxLength);
 
   mdlSample.plotTrajectory();
@@ -108,6 +112,15 @@ if true
   title("RMSE vs Time");
   xlabel('Time (s)');
   ylabel('RMSE');
+  legend();
+  grid();
+
+  figure
+  t = (0:T) * Ts;
+  plot(t, dkfTxRate, 'DisplayName', 'DKF');
+  title("TX Rate vs Time");
+  xlabel('Time (s)');
+  ylabel('TX Rate');
   legend();
   grid();
 end
