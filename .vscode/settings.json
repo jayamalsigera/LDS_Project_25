@@ -3,7 +3,12 @@
         "idkf",
         "kalman",
         "Penrose",
+        "pinv",
+        "RSME",
+        "semilogy",
         "Stabilizability",
-        "Unsqueeze"
+        "Unsqueeze",
+        "xlabel",
+        "ylabel"
     ]
 }

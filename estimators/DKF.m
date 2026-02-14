@@ -51,8 +51,41 @@ classdef DKF
       self.n = plant.n;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
-
       self.txRate = zeros(self.N, 1);
+    end
+
+    %% Estimation Method
+    function self = estimate(self, x0_hat, P0, X, Y)
+      % It's unrealistic to assume all nodes share same initial conditions
+      % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
+      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
+      q_pred = repmat(P0 \ x0_hat, 1, self.N);
+      Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
+
+      self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
+
+      % Initializing the "global" predictions, assuming c_t = 1 for all nodes in the first
+      % iteration (i.e. the first fusion step only relies on the local filtered values).
+      q_bar = zeros(self.n, self.N);
+      Omega_bar = zeros(self.n, self.n, self.N);
+
+      for t = 2:self.T + 1
+        y = Y(:, t);
+        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
+
+        for i = 1:self.N
+          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
+        end
+
+        c_t = self.exchange(t, self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
+        self.txRate(t) = sum(c_t) / self.N;
+
+        [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd, c_t);
+        [q_pred, Omega_pred] = self.getLocalPriors(q_fused, Omega_fused);
+        [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_bar, Omega_bar, q_upd, Omega_upd);
+      end
+
+      self.RMSE = self.calculateRSME(self.X_hat, X);
     end
 
     %% Correction/Update/Measurement step
@@ -82,18 +115,24 @@ classdef DKF
     %% Information Exchange
     % While we don't have to transmit anything, in this step we're calculating
     % c^i_t for all nodes.
-    function c_t = exchange(self, X_hat, Omega_upd, x_bar, Omega_bar)
+    function c_t = exchange(self, t, X_hat, Omega_upd, q_bar, Omega_bar)
       c_t = ones(self.N, 1);
+      if t == 1
+        return % Every node transmits on the first iteration
+      end
+
       for i = 1:self.N
         Omega_i = Omega_upd(:, :, i);
 
-        e = X_hat(:, i) - x_bar(:, i);  % Discrepancy from Prediction since last transmission
-        eNorm = e' * Omega_i * e;  % Weighted Euclidean Norm
+        x_bar_i = Omega_bar(:, :, i) \ q_bar(:, i);
 
-        lower = ( 1 / (1 + self.beta)) * Omega_i;
+        e = X_hat(:, i) - x_bar_i; % Discrepancy from Prediction since last transmission
+        eNorm = e' * Omega_i * e; % Weighted Euclidean Norm
+
+        lower = (1 / (1 + self.beta)) * Omega_i;
         upper = (1 + self.delta) * Omega_i;
 
-        if eNorm < self.alpha &&  isPSD(Omega_bar - lower) && isPSD(upper - Omega_bar)
+        if eNorm < self.alpha && isPSD(Omega_bar - lower) && isPSD(upper - Omega_bar)
           c_t(1) = 0;
         end
 
@@ -113,8 +152,8 @@ classdef DKF
 
           if i == j || c_t(j)
             % Node i has received from j or this is a self-loop (node has access to its own local info)
-            q_fused(i) = q_fused(i) + w_ij * q_upd(:, j);
-            Omega_fused(i) = Omega_fused(i) + w_ij * Omega_upd(:, j);
+            q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, j);
           else
             % TODO: Use predictions q_bar / Omega_bar
           end
@@ -122,7 +161,8 @@ classdef DKF
       end
     end
 
-    function [q_pred, Omega_pred] = prediction(self, q_fused, Omega_fused)
+    %% Prediction Step
+    function [q_pred, Omega_pred] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Omega_pred = zeros(self.n, self.n, self.N);
 
@@ -130,17 +170,34 @@ classdef DKF
         q_i = q_fused(:, i);
         Omega_i = Omega_fused(:, :, i);
 
-        I = eye(self.n);
-        foo = inv(Omega_i + self.A' * (self.Q \ self.A));
-        bar = self.A' \ (Omega_i / self.A);
-        baz = self.A' \ Omega_i;
+        Omega_pred(:, :, i) = self.updateOmega(Omega_i);
 
-        q_pred(:, i) = self.A' \ ((I - Omega_i * foo) * q_i);
-        Omega_pred(:, :, i) = bar - baz * foo * baz';
+        q_pred(:, i) = Omega_pred(:, :, i) * self.A * (Omega_i \ q_i);
       end
-
     end
 
+    function [q_bar, Omega_bar] = updateGlobalPriors(self, c_t, q_bar, Omega_bar, q_upd, Omega_upd)
+      for i = 1:self.N
+        q_check = c_t(i) * q_upd(:, i) + (1 - c_t(i)) * q_bar(:, i);
+        Omega_check = c_t(i) * Omega_upd(:, :, i) + (1 - c_t(i)) * Omega_bar(:, :, i);
+
+        Omega_bar(:, :, i) = self.updateOmega(Omega_check);
+
+        q_bar(:, i) = Omega_bar(:, :, i) * self.A * (Omega_check \ q_check);
+      end
+    end
+
+    function newOmega = updateOmega(self, Omega)
+      invQ = self.Q \ eye(self.n);
+      ATinvQ = self.A' * invQ;
+      % TODO: Review variable name
+      foo = (Omega + (ATinvQ * self.A)) \ eye(self.n);
+
+      newOmega = invQ - ATinvQ' * foo * ATinvQ;
+    end
+
+    %% RMSE Calculation
+    % TODO: Maybe we can move this to `utils`?
     function [rmse] = calculateRSME(self, X_hat, X)
       rmse = zeros(self.T + 1, 1);
       for t = 1:self.T
@@ -149,38 +206,7 @@ classdef DKF
       end
     end
 
-    function self = estimate(self, x0_hat, P0, X, Y)
-      % It's unrealistic to assume all nodes share same initial conditions
-      % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
-      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
-      q_pred = repmat(P0 \ x0_hat, 1, self.N);
-      Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
-
-      c_t = ones(self.N, 1)  % All nodes transmit on first iteration
-
-      self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
-
-      for t = 2:self.T + 1
-        y = Y(:, t);
-
-        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
-        c_t = self.exchange();
-        [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd, c_t);
-        [q_pred, Omega_pred] = self.prediction(q_fused, Omega_fused);
-
-        for i = 1:self.N
-          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
-        end
-
-        self.txRate(t) = sum(c_t) / self.N;
-
-        c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, x_bar, Omega_bar);
-
-      end
-
-      self.RMSE = self.calculateRSME(self.X_hat, X);
-    end
-
+    %% Plotting
     function plotTrajectory(self, X)
       % TODO: Would be cool if we could plot P(t) somehow
       % TODO: Restrict axis to ranges of X

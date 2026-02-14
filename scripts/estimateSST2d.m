@@ -56,9 +56,9 @@ dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 %% Monte Carlo simulations
 
 % totalRuns = 200;
-totalRuns = 100;
+% totalRuns = 100;
 % totalRuns = 10;
-% totalRuns = 1;
+totalRuns = 1;
 
 ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
@@ -91,7 +91,7 @@ if true
   mdlSample.plotOutputs();
 
   ckfSample.plotTrajectory(mdlSample.X);
-  dseacpSample.plotTrajectory(mdlSample.X);
+  % dseacpSample.plotTrajectory(mdlSample.X);
   dkfSample.plotTrajectory(mdlSample.X);
 
   figure
