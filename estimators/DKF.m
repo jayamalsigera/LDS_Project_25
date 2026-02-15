@@ -51,7 +51,7 @@ classdef DKF
       self.n = plant.n;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
-      self.txRate = zeros(self.N, 1);
+      self.txRate = zeros(self.T + 1, 1);
     end
 
     %% Estimation Method
@@ -118,7 +118,6 @@ classdef DKF
     function c_t = exchange(self, X_hat, Omega_upd, q_bar, Omega_bar)
       c_t = ones(self.N, 1);
       if any(isnan(Omega_bar), "all")
-        % disp("OMEGA_BAR ALL NAN")
         return % Every node transmits on the first iteration
       end
 
@@ -133,8 +132,8 @@ classdef DKF
         lower = (1 / (1 + self.beta)) * Omega_i;
         upper = (1 + self.delta) * Omega_i;
 
-        if eNorm <= self.alpha && isPSD(Omega_bar(:, :, i) - lower) && isPSD(upper - Omega_bar(:, :, i))
-          c_t(1) = 0;
+        if eNorm <= self.alpha && loewnerBetweenEig(lower, Omega_bar(:, :, i), upper)
+          c_t(i) = 0;
         end
       end
     end
@@ -151,12 +150,10 @@ classdef DKF
           w_ij = self.W(i, j);
 
           if (i == j) || c_t(j)
-            % disp(["a" i j double(i == j) c_t(j)])
             % Node i has received from j or this is a self-loop (node has access to its own local info)
             q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
           else
-            % disp(["b" i j (i == j) c_t(j)])
             q_tilda = (1 / (1 + self.delta)) * q_bar(:, j);
             Omega_tilda = (1 / (1 + self.delta)) * Omega_bar(:, :, j);
 
