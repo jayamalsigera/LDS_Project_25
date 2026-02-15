@@ -40,22 +40,7 @@ classdef CKF
       self.CtRinvC = self.C' * (self.R \ self.C);
     end
 
-    function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
-      x_prev = Omega_prev \ q_prev;
-      P_prev = Omega_prev \ eye(self.n);
-
-      x_pred = self.A * x_prev;
-      P_pred = self.A * P_prev * self.A' + self.Q;
-
-      Omega_pred = P_pred \ eye(self.n);
-      q_pred = Omega_pred * x_pred;
-    end
-
-    function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
-      Omega_upd = Omega_pred + self.CtRinvC;
-      q_upd = q_pred + self.C' * (self.R \ y_t);
-    end
-
+    %% Estimation Method
     function self = estimate(self, x0_hat, P0, X, Y)
       self.Omega(:, :, 1) = P0 \ eye(self.n); % inv(P0)
       self.q(:, 1) = self.Omega(:, :, 1) * x0_hat;
@@ -78,6 +63,22 @@ classdef CKF
       end
 
       self.RMSE = vecnorm(self.x_hat - X);
+    end
+
+    function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
+      Omega_upd = Omega_pred + self.CtRinvC;
+      q_upd = q_pred + self.C' * (self.R \ y_t);
+    end
+
+    function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
+      x_prev = Omega_prev \ q_prev;
+      P_prev = Omega_prev \ eye(self.n);
+
+      x_pred = self.A * x_prev;
+      P_pred = self.A * P_prev * self.A' + self.Q;
+
+      Omega_pred = P_pred \ eye(self.n);
+      q_pred = Omega_pred * x_pred;
     end
 
     function plotTrajectory(self, X)
