@@ -71,42 +71,18 @@ classdef DKF
 
       for t = 2:self.T + 1
         y = Y(:, t);
-        % disp("========= Local Posteriors =========")
         [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
 
-        % disp(q_upd)
-        % disp(Omega_upd)
-
-        % disp("========= STATE =========")
         for i = 1:self.N
           self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
         end
 
-        % disp(self.X_hat(:, :, t))
-
-        % disp("========= c^i_t =========")
         c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
         self.txRate(t) = sum(c_t) / self.N;
 
-        % disp(c_t)
-
-        % disp("========= Fused =========")
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
-
-        % disp(q_fused)
-        % disp(Omega_fused)
-
-        % disp("========= Local Priors =========")
         [q_pred, Omega_pred] = self.getLocalPriors(q_fused, Omega_fused);
-
-        % disp(q_pred)
-        % disp(Omega_pred)
-
-        % disp("========= Global Priors =========")
         [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
-
-        % disp(q_bar)
-        % disp(Omega_bar)
       end
 
       self.RMSE = self.calculateRSME(self.X_hat, X);

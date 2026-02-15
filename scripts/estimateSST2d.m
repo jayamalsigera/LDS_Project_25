@@ -18,9 +18,7 @@ x0 = [50 50 1800 2000]'; % v_x, v_y, p_x, p_y
 
 % nodeCount = 100;
 % sensorCount = 20;
-% nodeCount = 20;
-% sensorCount = 4;
-nodeCount = 6;
+nodeCount = 20;
 sensorCount = 4;
 
 maxLength = 5000;
