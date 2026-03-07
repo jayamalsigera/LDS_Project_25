@@ -54,16 +54,19 @@ classdef SingleTarget2dModel
       self.Y = zeros(self.p, T + 1);
     end
 
+    %% Update state
     function x_t = stateEq(self, x_prev)
       w_t = randn(self.m, 1);
       x_t = self.A * x_prev + self.B * w_t;
     end
 
+    %% Generate Output
     function y_t = outputEq(self, x_t)
       v_t = randn(self.p, 1);
       y_t = self.C * x_t + self.D * v_t;
     end
 
+    %% Iterate for all times
     function self = simulate(self, x0)
       self.X(:, 1) = x0;
       self.Y(:, 1) = self.outputEq(x0);
@@ -75,6 +78,7 @@ classdef SingleTarget2dModel
       end
     end
 
+    %% Plot the trajectory of the states
     function plotTrajectory(self)
       figure
       plot(self.X(3, :), self.X(4, :));

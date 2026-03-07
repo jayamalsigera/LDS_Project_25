@@ -42,6 +42,7 @@ classdef CKF
 
     %% Estimation Method
     function self = estimate(self, x0_hat, P0, X, Y)
+        %Convert initial parameters to information form
       self.Omega(:, :, 1) = P0 \ eye(self.n); % inv(P0)
       self.q(:, 1) = self.Omega(:, :, 1) * x0_hat;
       self.x_hat(:, 1) = x0_hat;
@@ -52,11 +53,13 @@ classdef CKF
         Omega_prev = self.Omega(:, :, t_prev);
         q_prev = self.q(:, t_prev);
 
-        [q_pred, Omega_pred] = self.prediction(q_prev, Omega_prev);
+
+        [q_pred, Omega_pred] = self.prediction(q_prev, Omega_prev); %Prediction Step
 
         y = Y(:, t);
-        [q_upd, Omega_upd] = self.update(y, q_pred, Omega_pred);
+        [q_upd, Omega_upd] = self.update(y, q_pred, Omega_pred); %Correction
 
+        %Return to normal statespace form
         self.x_hat(:, t) = Omega_upd \ q_upd;
         self.q(:, t) = q_upd;
         self.Omega(:, :, t) = Omega_upd;
@@ -65,11 +68,13 @@ classdef CKF
       self.RMSE = vecnorm(self.x_hat - X);
     end
 
+    %% Correction Step
     function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
       Omega_upd = Omega_pred + self.CtRinvC;
       q_upd = q_pred + self.C' * (self.R \ y_t);
     end
 
+    %% Prediction Step
     function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
       x_prev = Omega_prev \ q_prev;
       P_prev = Omega_prev \ eye(self.n);
@@ -81,6 +86,7 @@ classdef CKF
       q_pred = Omega_pred * x_pred;
     end
 
+    %% Plotting estimated trajectory
     function plotTrajectory(self, X)
       % TODO: Would be cool if we could plot P(t) somehow
       % TODO: Restrict axis to ranges of X
