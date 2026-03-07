@@ -79,6 +79,7 @@ classdef DSEACP
       self.RMSE = self.calculateRSME(self.X_hat, X);
     end
 
+    %Correction Step
     function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
       q_upd = zeros(self.n, self.N);
       Omega_upd = zeros(self.n, self.n, self.N);
@@ -131,7 +132,7 @@ classdef DSEACP
       q_fused = q_cons(:, :, end);
       Omega_fused = Omega_cons(:, :, :, end);
     end
-
+    %Prediction step
     function [q_pred, Omega_pred] = prediction(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Omega_pred = zeros(self.n, self.n, self.N);
