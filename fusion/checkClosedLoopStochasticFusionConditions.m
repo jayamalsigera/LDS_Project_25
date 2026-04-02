@@ -1,5 +1,7 @@
 %% Check if a node should transmit its data to the other nodes
-function c = checkStochasticFusionConditions(X, x_bar, Z)
+
+function c = checkClosedLoopStochasticFusionConditions(X, x_bar, Z)
+
   % Calculate the error in state estimates
   error = X - x_bar;
 
