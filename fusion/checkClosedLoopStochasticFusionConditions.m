@@ -1,5 +1,8 @@
+% Based on stochastic event-triggered sensor scheduling Closed-loop version
+% (Han et al., "Stochastic Event-Triggered Sensor Schedule for Remote State Estimation")
+
 %% Check if a node should transmit its data to the other nodes
-function c = checkStochasticFusionConditions(X, x_bar, Z)
+function c = checkStochasticFusionConditions_CL(X, x_bar, Z)
   % Calculate the error in state estimates
   error = X - x_bar;
 
