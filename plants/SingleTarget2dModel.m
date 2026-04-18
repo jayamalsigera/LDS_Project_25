@@ -23,10 +23,20 @@ classdef SingleTarget2dModel
     Y
   end
   methods
-    function self = SingleTarget2dModel(Ts, S, noiseStd, T)
+    function self = SingleTarget2dModel(Ts, S, noiseStd, T, omega)
+      if nargin < 5
+        omega = 0;  % Default: constant-velocity (straight line)
+      end
       self.Ts = Ts;
 
-      Ac = [zeros(2) zeros(2); eye(2) zeros(2)];
+      % Coordinated-turn model: velocity vector rotates at rate omega.
+      % State ordering: [vx; vy; px; py].
+      %   d/dt [vx; vy] = [0 -omega; omega 0] * [vx; vy]
+      %   d/dt [px; py] = [vx; vy]
+      Ac = [ 0     -omega 0 0;
+             omega  0     0 0;
+             1      0     0 0;
+             0      1     0 0];
       Bc = eye(4);
 
       sysc = ss(Ac, Bc, eye(4), zeros(size(Bc)));
