@@ -52,7 +52,7 @@ disp("Simulating target dynamics")
 plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
 assertStabilizable(plant.A, plant.B);
-% TODO: Detectability (or Observability?) check
+assertDetectable(plant.A, plant.C);
 
 %% Estimators
 disp("Initializing estimators")
