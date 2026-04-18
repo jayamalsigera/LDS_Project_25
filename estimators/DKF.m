@@ -99,6 +99,8 @@ classdef DKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
+          % Assumes C, R, and y are laid out with a 2-row block per node index
+          % (p_i = 2); non-sensor nodes still occupy their block as placeholders.
           idx = (2 * i - 1):(2 * i);
 
           y_i = y(idx);
