@@ -37,10 +37,12 @@ consensusSteps = 3; % Total Iterations for DSEACP consensus (L)
 % consensusSteps = 50;
 
 % Event-trigger parameters for DKF/RDKF/SRDKF
-dkfAlpha = 1;
-% dkfAlpha = 10;
-dkfBeta = 0.2;
-dkfDelta = 0.1;
+% dkfAlpha = 1;
+dkfAlpha = 10;
+% dkfBeta = 0.2;
+dkfBeta = 1;
+% dkfDelta = 0.1;
+dkfDelta = 1;
 
 % KL-divergence tolerance for robust filters (b). The LFM uses the same b.
 klTolerance = 0.1;
