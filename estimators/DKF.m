@@ -58,24 +58,27 @@ classdef DKF
     function self = estimate(self, x0_hat, P0, X, Y)
       % It's unrealistic to assume all nodes share same initial conditions
       % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
-
+      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
       q_pred = repmat(P0 \ x0_hat, 1, self.N);
       Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
       self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
 
-      % Initializing the "global" predictions, assuming c_t = 1 for all nodes in the first
-      % iteration (i.e. the first fusion step only relies on the local filtered values).
+      % Initializing the "global" predictions, assuming c_t = 1 for all nodes
+      % in the first iteration (i.e. the first fusion step only relies on the
+      % local filtered values).
       q_bar = nan(self.n, self.N);
       Omega_bar = nan(self.n, self.n, self.N);
 
-      %Iterate through all time steps
       for t = 2:self.T + 1
         y = Y(:, t);
         [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
 
         for i = 1:self.N
-          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i); %There seems to be an inconsistency with the paper here in taking the priors and not the posteriors
+          % Return to state representation from information form
+          % FIXME: There seems to be an inconsistency with the paper here in
+          % taking the priors and not the posteriors
+          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
         end
 
         c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
@@ -86,7 +89,7 @@ classdef DKF
         [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
       end
 
-      self.RMSE = self.calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRSME(self.X_hat, X);
     end
 
     %% Correction/Update/Measurement step
@@ -151,7 +154,8 @@ classdef DKF
           w_ij = self.W(i, j);
 
           if (i == j) || c_t(j)
-            % Node i has received from j or this is a self-loop (node has access to its own local info)
+            % Node i has received from j or this is a self-loop (node has
+            % access to its own local info)
             q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
           else
@@ -180,6 +184,7 @@ classdef DKF
       end
     end
 
+    % Propagate global priors in time when there is no transmission
     function [q_bar_next, Omega_bar_next] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
       q_bar_next = zeros(self.n, self.N);
       Omega_bar_next = zeros(self.n, self.n, self.N);
@@ -206,16 +211,6 @@ classdef DKF
       foo = (Omega + (self.A' * invQA)) \ eye(self.n);
 
       newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
-    end
-
-    %% RMSE Calculation
-    % TODO: Maybe we can move this to `utils`?
-    function [rmse] = calculateRSME(self, X_hat, X)
-      rmse = zeros(self.T + 1, 1);
-      for t = 1:self.T
-        err = X_hat(:, :, t) - X(:, t); % implicit expansion over N
-        rmse(t) = sqrt(mean(sum(err .^ 2, 1)));
-      end
     end
 
     %% Plotting

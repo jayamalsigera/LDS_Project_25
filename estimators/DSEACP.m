@@ -76,7 +76,7 @@ classdef DSEACP
         end
       end
 
-      self.RMSE = self.calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRSME(self.X_hat, X);
     end
 
     %Correction Step
@@ -151,14 +151,6 @@ classdef DSEACP
         Omega_pred(:, :, i) = bar - baz * foo * baz';
       end
 
-    end
-
-    function [rmse] = calculateRSME(self, X_hat, X)
-      rmse = zeros(self.T+1, 1);
-      for t = 1:self.T
-        err = X_hat(:, :, t) - X(:, t); % implicit expansion over N
-        rmse(t) = sqrt(mean(sum(err .^ 2, 1)));
-      end
     end
 
     function plotTrajectory(self, X)
