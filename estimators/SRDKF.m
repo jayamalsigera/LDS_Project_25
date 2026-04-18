@@ -29,8 +29,8 @@ classdef SRDKF
     % Stats
     RMSE
     txRate
-    %flag for open_loop vs closed_loop
-    triggerMode   % 'closed' or 'open'
+    % flag for open_loop ('open') vs closed_loop ('closed')
+    triggerMode
   end
 
   methods
@@ -68,35 +68,36 @@ classdef SRDKF
     function self = estimate(self, x0_hat, P0, X, Y)
       % It's unrealistic to assume all nodes share same initial conditions
       % (Battistelli & Chisci, 2014), specially with "perfect knowledge", but
-
+      % this allow us to get results in similar shape to (Ghion & Zorzi, 2023)
       q_pred = repmat(P0 \ x0_hat, 1, self.N);
       Psi = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
       self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
 
-      % Initializing the "global" predictions, assuming c_t = 1 for all nodes in the first
-      % iteration (i.e. the first fusion step only relies on the local filtered values).
+      % Initializing the "global" predictions, assuming c_t = 1 for all nodes
+      % in the first iteration (i.e. the first fusion step only relies on the
+      % local filtered values).
       q_bar = nan(self.n, self.N);
       Psi_bar = nan(self.n, self.n, self.N);
 
-      %Iterate through all time steps
       for t = 2:self.T + 1
         y = Y(:, t);
-        [q_upd, Omega_upd] = self.update(q_pred, Psi, y); %Correction step
+        [q_upd, Omega_upd] = self.update(q_pred, Psi, y);
 
         for i = 1:self.N
-          self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i); %Return to state spae form from information form
+          % Return to state representation from information form
+          self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar, y); %Evaluate trigger condition
-        self.txRate(t) = sum(c_t) / self.N; %Evaluate transmission rate, ie. what fraction of nodes transmit.
+        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar, y);
+        self.txRate(t) = sum(c_t) / self.N;
 
-        [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar); %Fuse data
-        [q_pred, Psi] = self.getLocalPriors(q_fused, Omega_fused); %Prediction steps for transmitting nodes
-        [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar); %Prediction step for non-transmitting nodes
+        [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
+        [q_pred, Psi] = self.getLocalPriors(q_fused, Omega_fused);
+        [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
       end
 
-      self.RMSE = self.calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRSME(self.X_hat, X);
     end
 
     %% Correction/Update/Measurement step
@@ -128,18 +129,15 @@ classdef SRDKF
     % c^i_t for all nodes.
     function c_t = exchange(self, X_hat, q_bar, Psi_bar, y)
       c_t = ones(self.N, 1);
-
-      % First iteration: force all transmissions
       if any(isnan(Psi_bar), "all")
-        return
+        return % Every node transmits on the first iteration
       end
 
       for i = 1:self.N
         switch lower(self.triggerMode)
           case 'closed'
             x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
-            c_t(i) = checkClosedLoopStochasticFusionConditions( ...
-                        X_hat(:, i), x_bar_i, self.Z);
+            c_t(i) = checkClosedLoopStochasticFusionConditions(X_hat(:, i), x_bar_i, self.Z);
 
           case 'open'
             if self.G.Nodes(i, :).isSensor
@@ -155,6 +153,7 @@ classdef SRDKF
         end
       end
     end
+
     %% Information Pair Fusion
     function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_fused = zeros(self.n, self.N);
@@ -167,7 +166,8 @@ classdef SRDKF
           pi_ij = self.Pi(i, j);
 
           if (i == j) || c_t(j)
-            % Node i has received from j or this is a self-loop (node has access to its own local info)
+            % Node i has received from j or this is a self-loop (node has
+            % access to its own local info)
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
@@ -182,7 +182,6 @@ classdef SRDKF
     end
 
     %% Prediction Step
-    %Robust prediction for transmitting nodes
     function [q_pred, Psi] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
@@ -199,8 +198,7 @@ classdef SRDKF
       end
     end
 
-    %Propagation of unupdated(??) information sets and perform robust prediction
-    %% Propagation of the pair used when no transmission occurs
+    % Update the global priors used in the fusion rule when there is no transmission
     function [q_bar_next, Psi_bar_next] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_bar_next = zeros(self.n, self.N);
       Psi_bar_next = zeros(self.n, self.n, self.N);
@@ -219,17 +217,6 @@ classdef SRDKF
 
         q_bar_next(:, i) = q_i_bar;
         Psi_bar_next(:, :, i) = Psi_i_bar;
-      end
-    end
-
-
-    %% RMSE Calculation
-    % TODO: Maybe we can move this to `utils`?
-    function [rmse] = calculateRSME(self, X_hat, X)
-      rmse = zeros(self.T + 1, 1);
-      for t = 1:self.T
-        err = X_hat(:, :, t) - X(:, t); % implicit expansion over N
-        rmse(t) = sqrt(mean(sum(err .^ 2, 1)));
       end
     end
 
