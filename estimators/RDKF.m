@@ -180,13 +180,10 @@ classdef RDKF
 
         Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
 
-        % Find theta satisfying gamma(Omega, theta)=b in Ghion, Zorzi (2023)
-        theta = self.findTheta(Omega_pred(:, :, i));
+        theta = findTheta(Omega_pred(:, :, i), self.b);
 
-        % Robust information set: Psi
+        % Robust information Pair
         Psi(:, :, i) = Omega_pred(:, :, i) - theta * eye(self.n);
-
-        % Robust information set: q
         q_pred(:, i) = Psi(:, :, i) * self.A * (Omega_i_F \ q_i_F);
       end
     end
@@ -206,9 +203,12 @@ classdef RDKF
         end
 
         Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
-        theta_bar = self.findTheta(Omega_bar_next(:, :, i)); %Find theta satisfying gamma(Omega,theta)=b in Ghion, Zorzi (2023)
-        Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n); %Robust information set: Psi
-        q_bar_next(:, i) = Psi_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check); %Robust information set: q
+
+        theta_bar = findTheta(Omega_bar_next(:, :, i), self.b);
+
+        % Robust information pair
+        Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n);
+        q_bar_next(:, i) = Psi_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check);
       end
     end
 
@@ -219,40 +219,6 @@ classdef RDKF
       foo = (Omega + (self.A' * invQA)) \ eye(self.n);
 
       newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
-    end
-
-    %Creat and solve equation to find theta
-    function theta = findTheta(self, Omega)
-      I = eye(self.n);
-
-      lambda = eig(Omega); % Compute eigenvalues of inv(Omega)
-      lambda_min = min(lambda); % Upper bound from theory
-
-      invOmega = Omega \ I;
-
-      yfunc = @(th) 0.5 * (trace(inv(I - th * invOmega) - I) + log(det(I - th * invOmega)));
-
-      % Solve y(theta) = b using bisection
-      theta = self.bisect(@(th) yfunc(th) - self.b, 0, 0.999 * lambda_min, 1e-6);
-    end
-
-    % Bisection method used to find theta
-    function theta = bisect(~, fun, a, b, tol)
-      fa = fun(a);
-
-      while (b - a) > tol
-        m = 0.5 * (a + b);
-        fm = fun(m);
-
-        if fa * fm <= 0
-          b = m;
-        else
-          a = m;
-          fa = fm;
-        end
-      end
-
-      theta = 0.5 * (a + b);
     end
 
     %% Plotting

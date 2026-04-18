@@ -15,32 +15,15 @@ function theta = findTheta(Omega, b)
 
   n = size(Omega, 1);
   I = eye(n);
+  invOmega = Omega \ I;
+
+  gamma = @(theta) 0.5 * (trace(inv(I - theta * invOmega) - I) ...
+                          + log(det(I - theta * invOmega)));
 
   % theta must satisfy 0 < theta < min(eig(Omega))
   theta_low = 0;
   theta_high = min(eig(Omega)) - 1e-10;
 
-  % Bisection
-  tol = 1e-9;
-  max_iter = 200;
-
-  for k = 1:max_iter
-    theta = 0.5 * (theta_low + theta_high);
-
-    M = I - theta * inv(Omega);
-    gamma_val = 0.5 * (trace(inv(M) - I) + log(det(M)));
-
-    if abs(gamma_val - b) < tol
-      return
-    end
-
-    if gamma_val < b
-      theta_low = theta;
-    else
-      theta_high = theta;
-    end
-  end
-
-  theta = 0.5 * (theta_low + theta_high);
+  theta = bisect(@(th) gamma(th) - b, theta_low, theta_high, 1e-9, 200);
 
 end
