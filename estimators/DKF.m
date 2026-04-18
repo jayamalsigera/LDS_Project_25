@@ -68,7 +68,7 @@ classdef DKF
       % iteration (i.e. the first fusion step only relies on the local filtered values).
       q_bar = nan(self.n, self.N);
       Omega_bar = nan(self.n, self.n, self.N);
-        
+
       %Iterate through all time steps
       for t = 2:self.T + 1
         y = Y(:, t);

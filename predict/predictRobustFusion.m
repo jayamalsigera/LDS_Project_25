@@ -4,7 +4,7 @@
 function [q_pred, Psi_pred, Omega_pred, theta] = predictRobustFusion(q_fused, Omega_fused, A, Q, b)
 
   Qinv = Q \ eye(size(Q));
-  
+
   % Nominal information prediction
   Omega_pred =  Qinv -  Qinv * A / (A' *  Qinv * A + Omega_fused) * A' *  Qinv;
 

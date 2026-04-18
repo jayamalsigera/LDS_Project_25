@@ -156,5 +156,3 @@ As this is only a preliminary version of the project, several functions are not 
 - The plant used to simulate the dynamics for all the plants is a nominal model, ie. not stochastically generated or a worst case model. The same goes for initial conditions.
 - The matrix Psi in the robust distributed Kalman filter and robust distributed Kalman filter with stochastic trigger becomes ill-conditioned. It has not been possible to determine a mistake in the code compared to the algorithm, so it is possible that the error is due to the initial conditions or how the robust filter works with a nominal plant.
 - The way the robust kalman filter is constructed right now, its trigger is always active. Again the source of this has not been found, but the ill-conditioned Psi-matrix would probably mean that a high innovation is seen each iteration leading to exceeding the tolerance.
-
-
