@@ -45,7 +45,7 @@ errorNormWeightsOpen = 300 * eye(2);
 disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
-% TODO: Connectivity check
+assertConnected(netGraph);
 % TODO: A doubly stochastic check
 
 %% Model Simulation
