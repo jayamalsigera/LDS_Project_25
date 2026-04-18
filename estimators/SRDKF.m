@@ -128,19 +128,19 @@ classdef SRDKF
     % c^i_t for all nodes.
     function c_t = exchange(self, X_hat, q_bar, Psi_bar, y)
       c_t = ones(self.N, 1);
-    
+
       % First iteration: force all transmissions
       if any(isnan(Psi_bar), "all")
         return
       end
-    
+
       for i = 1:self.N
         switch lower(self.triggerMode)
           case 'closed'
             x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
             c_t(i) = checkClosedLoopStochasticFusionConditions( ...
                         X_hat(:, i), x_bar_i, self.Z);
-    
+
           case 'open'
             if self.G.Nodes(i, :).isSensor
               idx = (2 * i - 1):(2 * i);
@@ -149,7 +149,7 @@ classdef SRDKF
             else
               c_t(i) = 0;
             end
-    
+
           otherwise
             error('Unknown triggerMode. Use ''closed'' or ''open''.');
         end
@@ -239,7 +239,7 @@ classdef SRDKF
       % TODO: Restrict axis to ranges of X
 
       meanX_hat = squeeze(mean(self.X_hat, 2));
-    
+
       figure
       plot(meanX_hat(3, :), meanX_hat(4, :));
       hold on
