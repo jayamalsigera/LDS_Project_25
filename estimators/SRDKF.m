@@ -171,11 +171,11 @@ classdef SRDKF
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
-            q_tilda = (1 / (1 + self.delta)) * q_bar(:, j);
-            Omega_tilda = (1 / (1 + self.delta)) * Psi_bar(:, :, j);
+            q_tilde = (1 / (1 + self.delta)) * q_bar(:, j);
+            Omega_tilde = (1 / (1 + self.delta)) * Psi_bar(:, :, j);
 
-            q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilda;
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilda;
+            q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
           end
         end
       end
