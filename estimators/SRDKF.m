@@ -145,6 +145,10 @@ classdef SRDKF
               y_i = y(idx);
               c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
             else
+              % TODO: This is limiting the transmission rate to a max of S/N,
+              % since non sensor nodes never transmit. We need to review it.
+              % The paper doesn't cover the case of non sensor nodes, so we
+              % might need to get creative...
               c_t(i) = 0;
             end
 
