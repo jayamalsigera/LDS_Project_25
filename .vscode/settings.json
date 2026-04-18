@@ -1,14 +1,24 @@
 {
     "cSpell.words": [
+        "Battistelli",
+        "Chisci",
+        "DSEA",
+        "DSEACP",
+        "Ghion",
         "idkf",
         "kalman",
         "Penrose",
         "pinv",
+        "RDKF",
+        "RMSE",
         "RSME",
         "semilogy",
+        "SRDKF",
         "Stabilizability",
+        "Stabilizable",
         "Unsqueeze",
         "xlabel",
-        "ylabel"
+        "ylabel",
+        "Zorzi"
     ]
 }
