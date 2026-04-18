@@ -77,8 +77,8 @@ srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
 disp("Running Monte Carlo simulations")
 
 % totalRuns = 200;
-totalRuns = 100;
-% totalRuns = 10;
+% totalRuns = 100;
+totalRuns = 10;
 % totalRuns = 2;
 
 % Preallocate RMSE and Transmission rate logs
@@ -164,16 +164,25 @@ if plottingEnabled
   srdkfClosedSample.plotTrajectory(mdlSample.X);
   srdkfOpenSample.plotTrajectory(mdlSample.X);
 
+  % Consistent color per estimator across all plots
+  colors = struct( ...
+    'CKF',          [0.00 0.45 0.74], ...
+    'DSEACP',       [0.85 0.33 0.10], ...
+    'DKF',          [0.93 0.69 0.13], ...
+    'RDKF',         [0.49 0.18 0.56], ...
+    'SRDKFClosed',  [0.47 0.67 0.19], ...
+    'SRDKFOpen',    [0.30 0.75 0.93]);
+
   % RMSE comparison
   figure
   t = (0:T) * Ts;
-  semilogy(t, mean(ckfRmse, 1), 'DisplayName', 'CKF');
+  semilogy(t, mean(ckfRmse, 1), 'Color', colors.CKF, 'DisplayName', 'CKF');
   hold on;
-  semilogy(t, mean(dseacpRmse, 1), 'DisplayName', 'DSEA-CP (L=3)');
-  semilogy(t, mean(dkfRmse, 1), 'DisplayName', 'DKF');
-  semilogy(t, mean(rdkfRmse, 1), 'DisplayName', 'RDKF');
-  semilogy(t, mean(srdkfClosedRmse, 1), 'DisplayName', 'SRDKF-Closed');
-  semilogy(t, mean(srdkfOpenRmse, 1), 'DisplayName', 'SRDKF-Open');
+  semilogy(t, mean(dseacpRmse, 1), 'Color', colors.DSEACP, 'DisplayName', 'DSEA-CP (L=3)');
+  semilogy(t, mean(dkfRmse, 1), 'Color', colors.DKF, 'DisplayName', 'DKF');
+  semilogy(t, mean(rdkfRmse, 1), 'Color', colors.RDKF, 'DisplayName', 'RDKF');
+  semilogy(t, mean(srdkfClosedRmse, 1), 'Color', colors.SRDKFClosed, 'DisplayName', 'SRDKF-Closed');
+  semilogy(t, mean(srdkfOpenRmse, 1), 'Color', colors.SRDKFOpen, 'DisplayName', 'SRDKF-Open');
   hold off;
   title("RMSE vs Time");
   xlabel('Time (s)');
@@ -185,11 +194,11 @@ if plottingEnabled
   % Transmission rate comparison
   figure
   t = (0:T) * Ts;
-  plot(t, mean(dkfTxRate, 1), 'DisplayName', 'DKF');
+  plot(t, mean(dkfTxRate, 1), 'Color', colors.DKF, 'DisplayName', 'DKF');
   hold on
-  plot(t, mean(rdkfTxRate, 1), 'DisplayName', 'RDKF');
-  plot(t, mean(srdkfClosedTxRate, 1), 'DisplayName', 'SRDKF-Closed');
-  plot(t, mean(srdkfOpenTxRate, 1), 'DisplayName', 'SRDKF-Open');
+  plot(t, mean(rdkfTxRate, 1), 'Color', colors.RDKF, 'DisplayName', 'RDKF');
+  plot(t, mean(srdkfClosedTxRate, 1), 'Color', colors.SRDKFClosed, 'DisplayName', 'SRDKF-Closed');
+  plot(t, mean(srdkfOpenTxRate, 1), 'Color', colors.SRDKFOpen, 'DisplayName', 'SRDKF-Open');
   hold off
   title("TX Rate vs Time");
   xlabel('Time (s)');
