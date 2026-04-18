@@ -43,7 +43,7 @@ dkfBeta = 0.2;
 dkfDelta = 0.1;
 
 % KL-divergence tolerance for robust filters (b). The LFM uses the same b.
-klTolerance = 0.05;
+klTolerance = 0.1;
 
 % Stochastic Trigger error norm weights Matrix (Z)
 errorNormWeightsClosed = 300 * eye(length(x0));
@@ -107,8 +107,10 @@ srdkfOpenTxRate   = zeros(totalRuns, T + 1);
 
 tic
 
-% Showcase run (serial) — keeps sample objects available for trajectory plots
+% Showcase run (serial) — keeps sample objects available for trajectory plots.
+% Also draw a nominal-model sample for side-by-side visual comparison.
 mdlSample = lfm.simulate(x0);
+nomSample = plant.simulate(x0);
 ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dseacpSample = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dkfSample = dkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
@@ -163,22 +165,29 @@ if plottingEnabled
   disp("Plotting results.")
   plotNetwork(netGraph, maxLength); % Visualize node layout
 
-  % True trajectory drawn from the LFM; reuse the nominal plant's plotters
-  % since mdlSample exposes the same X, Y fields.
+  % True trajectory (LFM sample) overlaid with a nominal-model sample, so
+  % the perturbation introduced by the least-favorable model is visible.
   figure
-  plot(mdlSample.X(3, :), mdlSample.X(4, :));
-  title("Simulated Trajectory (LFM)")
+  plot(nomSample.X(3, :), nomSample.X(4, :), 'DisplayName', 'Nominal');
+  hold on
+  plot(mdlSample.X(3, :), mdlSample.X(4, :), 'DisplayName', 'LFM');
+  hold off
+  title("Simulated Trajectory")
   xlabel('$p_x$', 'Interpreter', 'latex');
   ylabel('$p_y$', 'Interpreter', 'latex');
+  legend();
   grid()
 
-  % Estimated trajectories
-  ckfSample.plotTrajectory(mdlSample.X);
-  dseacpSample.plotTrajectory(mdlSample.X);
-  dkfSample.plotTrajectory(mdlSample.X);
-  rdkfSample.plotTrajectory(mdlSample.X);
-  srdkfClosedSample.plotTrajectory(mdlSample.X);
-  srdkfOpenSample.plotTrajectory(mdlSample.X);
+  % Estimated trajectories (estimator mean vs LFM truth; nominal overlaid
+  % as a visual reference for how far the worst-case model drifts).
+  plotEstimatedVsTruth = @(est, label) plotWithNominal( ...
+    est, label, mdlSample.X, nomSample.X);
+  plotEstimatedVsTruth(ckfSample,         'CKF');
+  plotEstimatedVsTruth(dseacpSample,      'DSEA-CP');
+  plotEstimatedVsTruth(dkfSample,         'DKF');
+  plotEstimatedVsTruth(rdkfSample,        'RDKF');
+  plotEstimatedVsTruth(srdkfClosedSample, 'SRDKF-Closed');
+  plotEstimatedVsTruth(srdkfOpenSample,   'SRDKF-Open');
 
   % Consistent color per estimator across all plots
   colors = struct( ...
@@ -219,6 +228,27 @@ if plottingEnabled
   title("TX Rate vs Time (LFM data)");
   xlabel('Time (s)');
   ylabel('TX Rate');
+  legend();
+  grid();
+end
+
+function plotWithNominal(estSample, label, Xlfm, Xnom)
+  if isprop(estSample, 'X_hat')
+    % Distributed estimators: n x N x (T+1). Collapse node dim.
+    meanX_hat = squeeze(mean(estSample.X_hat, 2));
+  else
+    % Centralized estimators (e.g., CKF): n x (T+1), no node dim.
+    meanX_hat = estSample.x_hat;
+  end
+  figure
+  plot(meanX_hat(3, :), meanX_hat(4, :), 'DisplayName', label);
+  hold on
+  plot(Xlfm(3, :), Xlfm(4, :), 'DisplayName', 'LFM truth');
+  plot(Xnom(3, :), Xnom(4, :), '--', 'DisplayName', 'Nominal');
+  hold off
+  title(sprintf("%s Estimated Trajectory", label));
+  xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
+  ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
   legend();
   grid();
 end
