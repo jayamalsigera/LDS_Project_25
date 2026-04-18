@@ -76,7 +76,7 @@ classdef DSEACP
         end
       end
 
-      self.RMSE = calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRmse(self.X_hat, X);
     end
 
     %Correction Step

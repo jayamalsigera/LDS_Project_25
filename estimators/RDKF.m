@@ -90,7 +90,7 @@ classdef RDKF
         [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
       end
 
-      self.RMSE = calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRmse(self.X_hat, X);
     end
 
     %% Correction/Update/Measurement step
@@ -174,6 +174,7 @@ classdef RDKF
       q_pred = zeros(self.n, self.N);
       Omega_pred = zeros(self.n, self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
+
       for i = 1:self.N
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
