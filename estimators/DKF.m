@@ -76,9 +76,7 @@ classdef DKF
 
         for i = 1:self.N
           % Return to state representation from information form
-          % FIXME: There seems to be an inconsistency with the paper here in
-          % taking the priors and not the posteriors
-          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
+          self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
         c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar);
