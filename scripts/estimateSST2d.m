@@ -18,6 +18,9 @@ T = 1000;
 Ts = 0.1; % Sampling Period
 outputNoiseStd = 10;
 
+turnRate = 0; % Straight Line
+% turnRate = 0.005; % Coordinated-turn rate [rad/s]; set to 0 for straight line
+
 x0 = [25 25 1000 1000]'; % Initial true state: [vx vy px py]
 % nodeCount = 100;% Total nodes in the network
 % sensorCount = 20; % Number of sensor nodes
@@ -49,7 +52,7 @@ assertConnected(netGraph);
 
 %% Model Simulation
 disp("Simulating target dynamics")
-plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
+plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
 
 assertStabilizable(plant.A, plant.B);
 assertDetectable(plant.A, plant.C);
@@ -69,7 +72,6 @@ dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 rdkf = RDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance);
 srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                     klTolerance, errorNormWeightsClosed, 'closed');
-
 srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                   klTolerance, errorNormWeightsOpen, 'open');
 %% Monte Carlo simulations
