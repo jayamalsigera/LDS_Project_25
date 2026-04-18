@@ -63,14 +63,6 @@ classdef DSEACP
         [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd);
         [q_pred, Omega_pred] = self.prediction(q_fused, Omega_fused);
 
-        % Pack `q_pred` vectors page-wise to compute state estimation for
-        % each node without a for loop.
-        % B = reshape(q_pred, self.n, 1, self.N);
-        % % Use `pagelsqminnorm` which is similar to using the Moore-Penrose
-        % % pseudo inversion but page-wise.
-        % x_nodes = pagelsqminnorm(Omega_pred, B);
-        % self.X_hat(:, :, t) = reshape(x_nodes, self.n, self.N);
-
         for i = 1:self.N
           self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
         end

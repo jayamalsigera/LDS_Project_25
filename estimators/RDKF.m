@@ -102,6 +102,8 @@ classdef RDKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
+          % Assumes C, R, and y are laid out with a 2-row block per node index
+          % (p_i = 2); non-sensor nodes still occupy their block as placeholders.
           idx = (2 * i - 1):(2 * i);
 
           y_i = y(idx);
@@ -181,6 +183,7 @@ classdef RDKF
 
         Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
 
+        % Risk Sensitivity Parameter
         theta = findTheta(Omega_pred(:, :, i), self.b);
 
         % Robust information Pair
@@ -205,6 +208,7 @@ classdef RDKF
 
         Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
 
+        % Risk Sensitivity Parameter
         theta_bar = findTheta(Omega_bar_next(:, :, i), self.b);
 
         % Robust information pair
