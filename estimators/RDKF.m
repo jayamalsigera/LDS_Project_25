@@ -237,7 +237,7 @@ classdef RDKF
         end
 
     %Bisection method used to find theta
-    function theta = bisect(self,fun, a, b, tol)
+    function theta = bisect(~,fun, a, b, tol)
     fa = fun(a);
 
     while (b - a) > tol

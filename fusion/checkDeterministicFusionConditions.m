@@ -1,3 +1,5 @@
+%% Based on RDKF in Ghion–Zorzi (2023)
+
 %% Check if a node should transmit its data to the other nodes
 function c = checkDeterministicFusionConditions(X, x_bar, Omega, epsilon)
   error = X - x_bar;

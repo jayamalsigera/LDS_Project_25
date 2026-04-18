@@ -29,10 +29,12 @@ classdef SRDKF
     % Stats
     RMSE
     txRate
+    %flag for open_loop vs closed_loop
+    triggerMode   % 'closed' or 'open'
   end
 
   methods
-    function self = SRDKF(plant, Ts, T, G, alpha, beta, delta, b, Z)
+    function self = SRDKF(plant, Ts, T, G, alpha, beta, delta, b, Z, triggerMode)
       self.Ts = Ts;
       self.T = T;
       self.G = G;
@@ -58,6 +60,8 @@ classdef SRDKF
 
       self.X_hat = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
+
+      self.triggerMode = triggerMode;
     end
 
     %% Estimation Method
@@ -84,7 +88,7 @@ classdef SRDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i); %Return to state spae form from information form
         end
 
-        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar); %Evaluate trigger condition
+        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar, y); %Evaluate trigger condition
         self.txRate(t) = sum(c_t) / self.N; %Evaluate transmission rate, ie. what fraction of nodes transmit.
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar); %Fuse data
@@ -122,26 +126,35 @@ classdef SRDKF
     %% Information Exchange
     % While we don't have to transmit anything, in this step we're calculating
     % c^i_t for all nodes.
-    function c_t = exchange(self, X_hat, q_bar, Psi_bar)
+    function c_t = exchange(self, X_hat, q_bar, Psi_bar, y)
       c_t = ones(self.N, 1);
+    
+      % First iteration: force all transmissions
       if any(isnan(Psi_bar), "all")
-        return % Every node transmits on the first iteration
+        return
       end
-
+    
       for i = 1:self.N
-        x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
-
-        % TODO: The paper mentions z_k = y_k - \bar{\hat{z}_k}
-        e = X_hat(:, i) - x_bar_i; % Discrepancy from Prediction since last transmission
-        % FIXME: Missing exponential
-        eNorm = e' * (self.Z \ e); % Weighted Euclidean Norm
-
-        if rand <= eNorm
-          c_t(i) = 0;
+        switch lower(self.triggerMode)
+          case 'closed'
+            x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
+            c_t(i) = checkClosedLoopStochasticFusionConditions( ...
+                        X_hat(:, i), x_bar_i, self.Z);
+    
+          case 'open'
+            if self.G.Nodes(i, :).isSensor
+              idx = (2 * i - 1):(2 * i);
+              y_i = y(idx);
+              c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
+            else
+              c_t(i) = 0;
+            end
+    
+          otherwise
+            error('Unknown triggerMode. Use ''closed'' or ''open''.');
         end
       end
     end
-
     %% Information Pair Fusion
     function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_fused = zeros(self.n, self.N);
@@ -172,25 +185,26 @@ classdef SRDKF
     %Robust prediction for transmitting nodes
     function [q_pred, Psi] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
-      Omega_pred = zeros(self.n, self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
+
       for i = 1:self.N
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
+        [q_i_pred, Psi_i_pred, ~, ~] = predictRobustFusion( ...
+          q_i_F, Omega_i_F, self.A, self.Q, self.b);
 
-        theta = self.findTheta(Omega_pred(:, :, i));
-        Psi(:, :, i) = Omega_pred(:, :, i) - theta * eye(self.n);
-        q_pred(:, i) = Psi(:, :, i) * self.A * (Omega_i_F \ q_i_F);
+        q_pred(:, i) = q_i_pred;
+        Psi(:, :, i) = Psi_i_pred;
       end
     end
 
     %Propagation of unupdated(??) information sets and perform robust prediction
+    %% Propagation of the pair used when no transmission occurs
     function [q_bar_next, Psi_bar_next] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_bar_next = zeros(self.n, self.N);
-      Omega_bar_next = zeros(self.n, self.n, self.N);
       Psi_bar_next = zeros(self.n, self.n, self.N);
+
       for i = 1:self.N
         if c_t(i)
           q_i_check = q_upd(:, i);
@@ -200,57 +214,14 @@ classdef SRDKF
           Omega_i_check = Psi_bar(:, :, i);
         end
 
-        Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
-        theta_bar = self.findTheta(Omega_bar_next(:, :, i)); %Find theta satisfying gamma(Omega,theta)=b in Ghion, Zorzi (2023)
-        Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n); %Robust information set: Psi
-        q_bar_next(:, i) = Psi_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check); %Robust information set: q
+        [q_i_bar, Psi_i_bar, ~, ~] = predictNoTransmit( ...
+          q_i_check, Omega_i_check, self.A, self.Q, self.b);
+
+        q_bar_next(:, i) = q_i_bar;
+        Psi_bar_next(:, :, i) = Psi_i_bar;
       end
     end
 
-    function newOmega = updateOmega(self, Omega)
-      invQ = self.Q \ eye(self.n);
-      invQA = invQ * self.A;
-      % TODO: Review variable name
-      foo = (Omega + (self.A' * invQA)) \ eye(self.n);
-
-      newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
-    end
-
-    % Create and solve equation to find theta
-    function theta = findTheta(self, Omega)
-      % Compute eigenvalues of inv(Omega)
-      lambda = eig(Omega);
-      I = eye(self.n);
-      invOmega = Omega \ I;
-
-      % Define y(theta)
-      yfun = @(th) 0.5 * (trace(inv(I - th * invOmega) - I) + log(det(I - th * invOmega)));
-
-      % Upper bound from theory
-      lambda_min = min(lambda);
-
-      % Solve y(theta) = b using bisection
-      theta = self.bisect(@(th) yfun(th) - self.b, 0, 0.999 * lambda_min, 1e-6);
-    end
-
-    % TODO: Move to utils and document
-    function theta = bisect(self, fun, a, b, tol)
-      fa = fun(a);
-
-      while (b - a) > tol
-        m = 0.5 * (a + b);
-        fm = fun(m);
-
-        if fa * fm <= 0
-          b = m;
-        else
-          a = m;
-          fa = fm;
-        end
-      end
-
-      theta = 0.5 * (a + b);
-    end
 
     %% RMSE Calculation
     % TODO: Maybe we can move this to `utils`?
@@ -267,17 +238,17 @@ classdef SRDKF
       % TODO: Would be cool if we could plot P(t) somehow
       % TODO: Restrict axis to ranges of X
 
-      meanX_hat = mean(self.X_hat, 2);
-
+      meanX_hat = squeeze(mean(self.X_hat, 2));
+    
       figure
       plot(meanX_hat(3, :), meanX_hat(4, :));
       hold on
       plot(X(3, :), X(4, :));
       hold off
-      title("SRDKF Estimated Trajectory")
+      title(sprintf("SRDKF Estimated Trajectory (%s-loop)", self.triggerMode))
       xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
       ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"SRDKF", "Actual Model"})
+      legend({sprintf('SRDKF-%s', self.triggerMode), "Actual Model"})
       grid()
     end
   end

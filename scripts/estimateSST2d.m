@@ -39,8 +39,8 @@ dkfDelta = 0.5;
 klTolerance = 0.05;
 
 % Stochastic Trigger error norm weights Matrix (Z)
-errorNormWeights = 30 * eye(nodeCount);
-
+errorNormWeightsClosed = 300 * eye(length(x0));
+errorNormWeightsOpen = 300 * eye(2);
 %% Network Definition
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
@@ -65,8 +65,11 @@ ckf = CKF(plant, Ts, T);
 dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 rdkf = RDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance);
-srdkf = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance, errorNormWeights);
+srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                    klTolerance, errorNormWeightsClosed, 'closed');
 
+srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                  klTolerance, errorNormWeightsOpen, 'open');
 %% Monte Carlo simulations
 
 % totalRuns = 200;
@@ -79,11 +82,14 @@ ckfRmse = zeros(totalRuns, T + 1);
 dseacpRmse = zeros(totalRuns, T + 1);
 dkfRmse = zeros(totalRuns, T + 1);
 rdkfRmse = zeros(totalRuns, T + 1);
-srdkfRmse = zeros(totalRuns, T + 1);
+srdkfClosedRmse = zeros(totalRuns, T + 1);
+srdkfOpenRmse   = zeros(totalRuns, T + 1);
+
 
 dkfTxRate = zeros(totalRuns, T + 1);
 rdkfTxRate = zeros(totalRuns, T + 1);
-srdkfTxRate = zeros(totalRuns, T + 1);
+srdkfClosedTxRate = zeros(totalRuns, T + 1);
+srdkfOpenTxRate   = zeros(totalRuns, T + 1);
 
 h = waitbar(0, 'Running simulations');
 tic
@@ -106,9 +112,13 @@ for run = 1:totalRuns
   rdkfRmse(run, :) = rdkfSample.RMSE;
   rdkfTxRate(run, :) = rdkfSample.txRate;
 
-  srdkfSample = srdkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-  srdkfRmse(run, :) = srdkfSample.RMSE;
-  srdkfTxRate(run, :) = srdkfSample.txRate;
+  srdkfClosedSample = srdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  srdkfClosedRmse(run, :) = srdkfClosedSample.RMSE;
+  srdkfClosedTxRate(run, :) = srdkfClosedSample.txRate;
+
+  srdkfOpenSample = srdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+  srdkfOpenRmse(run, :) = srdkfOpenSample.RMSE;
+  srdkfOpenTxRate(run, :) = srdkfOpenSample.txRate;
 
   waitbar(run / totalRuns, h, sprintf('Run %d/%d', run, totalRuns));
 end
@@ -129,7 +139,8 @@ if true
   dseacpSample.plotTrajectory(mdlSample.X);
   dkfSample.plotTrajectory(mdlSample.X);
   rdkfSample.plotTrajectory(mdlSample.X);
-  srdkfSample.plotTrajectory(mdlSample.X);
+  srdkfClosedSample.plotTrajectory(mdlSample.X);
+  srdkfOpenSample.plotTrajectory(mdlSample.X);
 
   % RMSE comparison
   figure
@@ -139,7 +150,8 @@ if true
   semilogy(t, mean(dseacpRmse, 1), 'DisplayName', 'DSEA-CP (L=3)');
   semilogy(t, mean(dkfRmse, 1), 'DisplayName', 'DKF');
   semilogy(t, mean(rdkfRmse, 1), 'DisplayName', 'RDKF');
-  semilogy(t, mean(srdkfRmse, 1), 'DisplayName', 'SRDKF');
+  semilogy(t, mean(srdkfClosedRmse, 1), 'DisplayName', 'SRDKF-Closed');
+  semilogy(t, mean(srdkfOpenRmse, 1), 'DisplayName', 'SRDKF-Open');
   hold off;
   title("RMSE vs Time");
   xlabel('Time (s)');
@@ -154,7 +166,8 @@ if true
   plot(t, mean(dkfTxRate, 1), 'DisplayName', 'DKF');
   hold on
   plot(t, mean(rdkfTxRate, 1), 'DisplayName', 'RDKF');
-  plot(t, mean(srdkfTxRate, 1), 'DisplayName', 'SRDKF');
+  plot(t, mean(srdkfClosedTxRate, 1), 'DisplayName', 'SRDKF-Closed');
+  plot(t, mean(srdkfOpenTxRate, 1), 'DisplayName', 'SRDKF-Open');
   hold off
   title("TX Rate vs Time");
   xlabel('Time (s)');

@@ -1,4 +1,6 @@
-% Function to fuse the data between nodes
+
+
+%% Function to fuse the data between nodes
 function [q_new, Omega_new, q_fused, Omega_fused] = fuseData(q, Omega, c, pi, i, delta)
   % We wish to create the summation eq. 10-11 from robust-kalman-eventtriggered
 
