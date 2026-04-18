@@ -65,7 +65,7 @@ classdef CKF
         self.Omega(:, :, t) = Omega_upd;
       end
 
-      self.RMSE = vecnorm(self.x_hat - X);
+      self.RMSE = calculateRmse(reshape(self.x_hat, self.n, 1, []), X);
     end
 
     %% Correction Step

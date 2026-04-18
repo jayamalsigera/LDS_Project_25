@@ -87,7 +87,7 @@ classdef DKF
         [q_bar, Omega_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
       end
 
-      self.RMSE = calculateRSME(self.X_hat, X);
+      self.RMSE = calculateRmse(self.X_hat, X);
     end
 
     %% Correction/Update/Measurement step
