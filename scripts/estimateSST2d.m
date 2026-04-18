@@ -46,13 +46,12 @@ disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
 assertConnected(netGraph);
-% TODO: A doubly stochastic check
 
 %% Model Simulation
 disp("Simulating target dynamics")
 plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
-% TODO: Stabilizability check
+assertStabilizable(plant.A, plant.B);
 % TODO: Detectability (or Observability?) check
 
 %% Estimators
