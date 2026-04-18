@@ -85,16 +85,16 @@ rmseCurves = zeros(nConfigs, T + 1);
 txCurves   = zeros(nConfigs, T + 1);
 
 disp("Running simulations...")
+q = parforWaitbar(nConfigs, 'Sweeping DKF hyperparameters');
 parfor i = 1:nConfigs
   c = configs{i};
-  tConfig = tic;
   [rmseRow, txRow] = evalConfig(c.alpha, c.beta, c.delta);
   rmseCurves(i, :) = rmseRow;
   txCurves(i, :)   = txRow;
   meanRmse(i)   = mean(rmseRow);
   finalRmse(i)  = rmseRow(end);
   meanTxRate(i) = mean(txRow);
-  fprintf('Config %d/%d done (%.3f s)\n', i, nConfigs, toc(tConfig));
+  send(q, i);
 end
 
 %% Results table
