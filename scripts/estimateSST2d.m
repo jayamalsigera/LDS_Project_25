@@ -42,18 +42,21 @@ klTolerance = 0.05;
 errorNormWeightsClosed = 300 * eye(length(x0));
 errorNormWeightsOpen = 300 * eye(2);
 %% Network Definition
+disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
 % TODO: Connectivity check
 % TODO: A doubly stochastic check
 
 %% Model Simulation
+disp("Simulating target dynamics")
 plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
 
 % TODO: Stabilizability check
 % TODO: Detectability (or Observability?) check
 
 %% Estimators
+disp("Initializing estimators")
 
 % TODO: Review initialization
 x0_hat = x0;  %Initial estimate
@@ -71,11 +74,12 @@ srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
 srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                   klTolerance, errorNormWeightsOpen, 'open');
 %% Monte Carlo simulations
+disp("Running Monte Carlo simulations")
 
 % totalRuns = 200;
 % totalRuns = 100;
 totalRuns = 10;
- %totalRuns = 2;
+% totalRuns = 2;
 
 % Preallocate RMSE and Transmission rate logs
 ckfRmse = zeros(totalRuns, T + 1);
@@ -127,8 +131,9 @@ close(h)
 
 %% Plotting
 
-if true
-  % if false
+plottingEnabled = true;
+if plottingEnabled
+  disp("Plotting results.")
   plotNetwork(netGraph, maxLength); % Visualize node layout
 
   mdlSample.plotTrajectory(); % True trajectory
