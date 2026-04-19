@@ -9,6 +9,7 @@ rng(42);
 
 %% Parameters
 sst2dParams;
+
 %% Network Definition
 disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
@@ -36,11 +37,6 @@ srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                   klTolerance, errorNormWeightsOpen, 'open');
 %% Monte Carlo simulations
 disp("Running Monte Carlo simulations")
-
-% totalRuns = 200;
-% totalRuns = 100;
-totalRuns = 10;
-% totalRuns = 2;
 
 % Preallocate RMSE and Transmission rate logs
 ckfRmse = zeros(totalRuns, T + 1);
@@ -78,8 +74,8 @@ srdkfClosedTxRate(1, :) = srdkfClosedSample.txRate;
 srdkfOpenRmse(1, :) = srdkfOpenSample.RMSE;
 srdkfOpenTxRate(1, :) = srdkfOpenSample.txRate;
 
-q = parforWaitbar(totalRuns - 1, 'Running simulations');
 parfor run = 2:totalRuns
+  fprintf('Running simulation %d/%d\n', run, totalRuns);
   % Simulate one trajectory of the plant
   s = plant.simulate(x0);
 
@@ -102,8 +98,6 @@ parfor run = 2:totalRuns
   srdkfOpenRun = srdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkfOpenRmse(run, :) = srdkfOpenRun.RMSE;
   srdkfOpenTxRate(run, :) = srdkfOpenRun.txRate;
-
-  send(q, run);
 end
 fprintf('Elapsed: %.3f s\n', toc);
 

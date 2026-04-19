@@ -22,9 +22,6 @@ rng(42);
 %% Fixed parameters
 sst2dParams;
 
-% totalRuns = 100;
-totalRuns = 10;
-
 %% Hyperparameter grid
 alphaGrid = [0.1, 1, 5, 10];
 betaGrid  = [0.1, 0.5, 1, 2.5];
@@ -86,8 +83,8 @@ rmseCurves = zeros(nConfigs, T + 1);
 txCurves   = zeros(nConfigs, T + 1);
 
 disp("Running simulations...")
-q = parforWaitbar(nConfigs, 'Sweeping RDKF hyperparameters');
 parfor i = 1:nConfigs
+  fprintf('Sweeping RDKF hyperparameters %d/%d\n', i, nConfigs);
   c = configs{i};
   [rmseRow, txRow] = evalConfig(c.alpha, c.beta, c.delta, c.b);
   rmseCurves(i, :) = rmseRow;
@@ -95,7 +92,6 @@ parfor i = 1:nConfigs
   meanRmse(i)   = mean(rmseRow);
   finalRmse(i)  = rmseRow(end);
   meanTxRate(i) = mean(txRow);
-  send(q, i);
 end
 
 %% Results table
