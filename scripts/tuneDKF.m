@@ -16,14 +16,7 @@ clc;
 rng(42);
 
 %% Fixed parameters
-T = 1000;
-Ts = 0.1;
-outputNoiseStd = 10;
-
-x0 = [25 25 1000 1000]';
-nodeCount = 20;
-sensorCount = 4;
-maxLength = 5000;
+sst2dParams;
 
 totalRuns = 100;
 % totalRuns = 5;
@@ -43,10 +36,7 @@ disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
 
 disp("Simulating target dynamics")
-plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T);
-
-x0_hat = x0;
-P0 = 1e3 * eye(size(x0, 1));
+plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
 
 %% Pre-generate trajectories so all configurations see the same data
 disp("Pre-generating Monte Carlo trajectories")
