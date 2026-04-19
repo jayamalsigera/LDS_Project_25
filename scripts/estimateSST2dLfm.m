@@ -118,97 +118,24 @@ parfor run = 2:totalRuns
 end
 fprintf('Elapsed: %.3f s\n', toc);
 
-%% Plotting
+%% Save run
+results = struct( ...
+  'ckfRmse', ckfRmse, 'dseacpRmse', dseacpRmse, ...
+  'dkfRmse', dkfRmse, 'rdkfRmse', rdkfRmse, ...
+  'srdkfClosedRmse', srdkfClosedRmse, 'srdkfOpenRmse', srdkfOpenRmse, ...
+  'dkfTxRate', dkfTxRate, 'rdkfTxRate', rdkfTxRate, ...
+  'srdkfClosedTxRate', srdkfClosedTxRate, 'srdkfOpenTxRate', srdkfOpenTxRate);
+samples = struct( ...
+  'mdlSample', mdlSample, 'nomSample', nomSample, ...
+  'ckfSample', ckfSample, 'dseacpSample', dseacpSample, ...
+  'dkfSample', dkfSample, 'rdkfSample', rdkfSample, ...
+  'srdkfClosedSample', srdkfClosedSample, 'srdkfOpenSample', srdkfOpenSample);
+extras = struct('totalRuns', totalRuns);
+savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
 
+%% Plotting
 plottingEnabled = true;
 if plottingEnabled
   disp("Plotting results.")
-  plotNetwork(netGraph, maxLength); % Visualize node layout
-
-  % True trajectory (LFM sample) overlaid with a nominal-model sample, so
-  % the perturbation introduced by the least-favorable model is visible.
-  figure
-  plot(nomSample.X(3, :), nomSample.X(4, :), 'DisplayName', 'Nominal');
-  hold on
-  plot(mdlSample.X(3, :), mdlSample.X(4, :), 'DisplayName', 'LFM');
-  hold off
-  title("Simulated Trajectory")
-  xlabel('$p_x$', 'Interpreter', 'latex');
-  ylabel('$p_y$', 'Interpreter', 'latex');
-  legend();
-  grid()
-
-  % Estimated trajectories (estimator mean vs LFM truth; nominal overlaid
-  % as a visual reference for how far the worst-case model drifts).
-  plotEstimatedVsTruth = @(est, label) plotWithNominal( ...
-    est, label, mdlSample.X, nomSample.X);
-  plotEstimatedVsTruth(ckfSample,         'CKF');
-  plotEstimatedVsTruth(dseacpSample,      'DSEA-CP');
-  plotEstimatedVsTruth(dkfSample,         'DKF');
-  plotEstimatedVsTruth(rdkfSample,        'RDKF');
-  plotEstimatedVsTruth(srdkfClosedSample, 'SRDKF-Closed');
-  plotEstimatedVsTruth(srdkfOpenSample,   'SRDKF-Open');
-
-  % Consistent color per estimator across all plots
-  colors = struct( ...
-    'CKF',          [0.00 0.45 0.74], ...
-    'DSEACP',       [0.85 0.33 0.10], ...
-    'DKF',          [0.93 0.69 0.13], ...
-    'RDKF',         [0.49 0.18 0.56], ...
-    'SRDKFClosed',  [0.47 0.67 0.19], ...
-    'SRDKFOpen',    [0.30 0.75 0.93]);
-
-  % RMSE comparison
-  figure
-  t = (0:T) * Ts;
-  semilogy(t, mean(ckfRmse, 1), 'Color', colors.CKF, 'DisplayName', 'CKF');
-  hold on;
-  semilogy(t, mean(dseacpRmse, 1), 'Color', colors.DSEACP, 'DisplayName', 'DSEA-CP (L=3)');
-  semilogy(t, mean(dkfRmse, 1), 'Color', colors.DKF, 'DisplayName', 'DKF');
-  semilogy(t, mean(rdkfRmse, 1), 'Color', colors.RDKF, 'DisplayName', 'RDKF');
-  semilogy(t, mean(srdkfClosedRmse, 1), 'Color', colors.SRDKFClosed, 'DisplayName', 'SRDKF-Closed');
-  semilogy(t, mean(srdkfOpenRmse, 1), 'Color', colors.SRDKFOpen, 'DisplayName', 'SRDKF-Open');
-  hold off;
-  title("RMSE vs Time (LFM data)");
-  xlabel('Time (s)');
-  ylabel('RMSE');
-  legend();
-  grid();
-
-
-  % Transmission rate comparison
-  figure
-  t = (0:T) * Ts;
-  plot(t, mean(dkfTxRate, 1), 'Color', colors.DKF, 'DisplayName', 'DKF');
-  hold on
-  plot(t, mean(rdkfTxRate, 1), 'Color', colors.RDKF, 'DisplayName', 'RDKF');
-  plot(t, mean(srdkfClosedTxRate, 1), 'Color', colors.SRDKFClosed, 'DisplayName', 'SRDKF-Closed');
-  plot(t, mean(srdkfOpenTxRate, 1), 'Color', colors.SRDKFOpen, 'DisplayName', 'SRDKF-Open');
-  hold off
-  title("TX Rate vs Time (LFM data)");
-  xlabel('Time (s)');
-  ylabel('TX Rate');
-  legend();
-  grid();
-end
-
-function plotWithNominal(estSample, label, Xlfm, Xnom)
-  if isprop(estSample, 'X_hat')
-    % Distributed estimators: n x N x (T+1). Collapse node dim.
-    meanX_hat = squeeze(mean(estSample.X_hat, 2));
-  else
-    % Centralized estimators (e.g., CKF): n x (T+1), no node dim.
-    meanX_hat = estSample.x_hat;
-  end
-  figure
-  plot(meanX_hat(3, :), meanX_hat(4, :), 'DisplayName', label);
-  hold on
-  plot(Xlfm(3, :), Xlfm(4, :), 'DisplayName', 'LFM truth');
-  plot(Xnom(3, :), Xnom(4, :), '--', 'DisplayName', 'Nominal');
-  hold off
-  title(sprintf("%s Estimated Trajectory", label));
-  xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-  ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-  legend();
-  grid();
+  plotSST2dRun(loadRun(savedPath));
 end
