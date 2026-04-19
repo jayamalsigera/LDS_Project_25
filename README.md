@@ -1,158 +1,115 @@
 # Robust Distributed Kalman Filtering (RDKF) – MATLAB Project
 
-This project implements and compares several distributed state estimation algorithms for sensor networks, including robust and event‑triggered variants of the Distributed Kalman Filter (DKF). The implementation is based on:
+This project implements and compares several distributed state-estimation algorithms for sensor networks, including robust and event-triggered variants of the Distributed Kalman Filter. Monte Carlo experiments target 2D single-target tracking over a spatially distributed sensor network, with optional least-favorable-model (LFM) perturbation for stress-testing robust filters.
 
-- *Ghion & Zorzi (2023): Robust Distributed Kalman Filtering with Event‑Triggered Communication*
-- *Battistelli, et al., (2018): A distributed Kalman filter with event-triggered communication and guaranteed stability*
-- *Han, et al. (2015): Stochastic Event-Triggered Sensor Schedule for Remote State Estimation*
-- *Batistelli & Chisci (2014): Stability of Consensus Extended Kalman Filtering for Distributed State Estimation*
+Implementation follows:
 
-The implementation is done for the problem of 2D single‑target tracking with noisy measurements and a spatially distributed sensor network.
+- *Ghion & Zorzi (2023): Robust Distributed Kalman Filtering with Event-Triggered Communication*
+- *Battistelli et al. (2018): A Distributed Kalman Filter with Event-Triggered Communication and Guaranteed Stability*
+- *Han et al. (2015): Stochastic Event-Triggered Sensor Schedule for Remote State Estimation*
+- *Battistelli & Chisci (2014): Stability of Consensus Extended Kalman Filtering for Distributed State Estimation*
+- *Levy & Nikoukhah (2013): Robust State-Space Filtering Under Incremental Model Perturbations* (least-favorable model, Section V)
 
 ---
 
 ## Project Structure
 
-### `estimators/`
-MATLAB classes implementing different filtering algorithms:
-
-- **CKF.m** – Centralized Kalman Filter
-- **DKF.m** – Distributed Kalman Filter (Battistelli, et al.)
-- **DSEACP.m** – Distributed State Estimation with Average Consensus Protocol (Batistelli & Chisci)
-- **RDKF.m** – Robust DKF with event‑triggered communication (Ghion & Zorzi)
-- **SRDKF.m** – Stochastic Robust DKF (stochastic triggering variant)
-
-```
-
----
-
-### `networks/`
-Utilities for generating and analyzing communication graphs:
-
-- **createSpatialNetwork.m** – Random geometric graph with designated sensor nodes
-- **calcMetropolisWeights.m** – Metropolis–Hastings consensus weights
-- **calcFusionWeights.m** – Uniform consensus weights (as used in the paper)
-- **plotNetwork.m** – Visualization of node positions and edges
-- **getConnectivityPercentage.m** – Connectivity diagnostics
+- `estimators/` — Filter implementations: CKF (centralized baseline), DKF, DSEACP, RDKF, and SRDKF.
+- `plants/` — Target-dynamics models: the nominal 2D single-target plant and the least-favorable-model data generator, plus stabilizability/detectability checks.
+- `networks/` — Spatial sensor-network generation, consensus-weight computation, connectivity diagnostics, and graph visualization.
+- `predict/` — Robust prediction primitives used by RDKF/SRDKF (risk-sensitivity bisection, robust fusion, no-transmit prediction).
+- `fusion/` — Stochastic- and deterministic-trigger fusion conditions and data fusion.
+- `utils/` — General helpers (RMSE, bisection, Loewner-order checks, `parfor` progress bar).
+- `scripts/` — Top-level experiments (`estimateSST2d`, `estimateSST2dLfm`, `tuneDKF`, `tuneRDKF`), the shared parameter file `sst2dParams.m`, and the save/load/plot tooling that makes Monte Carlo runs reproducible.
+- `papers/` — Reference material.
+- `legacy/`, `idkf/`, `ssm/` — Archived or in-progress code outside the main pipeline.
 
 ---
 
-### `plants/`
-Plant models used for simulation:
-
-- **SingleTarget2dModel.m** – 2D kinematic model with position/velocity state and noisy sensor outputs
-
-This class provides:
-- system matrices (A, B, C, D)
-- simulation of true trajectory and measurements
-
----
-
-### `scripts/`
-Top‑level scripts for running experiments:
-
-- **estimateSST2d.m** – Main simulation script (Monte Carlo runs, RMSE plots, Tx‑rate plots)
-- **testConnectivityPercentage.m** – Utility for checking network connectivity statistics
-
----
-
-### `utils/`
-General helper functions:
-
-- **loewnerBetweenEig.m** – Checks Loewner ordering between matrices (used in event triggers)
-
----
-
-### Other files
-- **lds-proj.prj** – MATLAB project file
-- **.vscode/** – Editor configuration
-
----
-
-## To run project:
+## Running experiments
 
 ### 1. Open the MATLAB project
 
-- Double‑click `lds-proj.prj
+Double-click `lds-proj.prj` (this puts all subfolders on the path).
 
----
+### 2. Configure shared parameters
 
-### 2. Run the main simulation script
+All four experiment scripts source `scripts/sst2dParams.m`. Edit that file to change anything shared across experiments.
 
-From MATLAB:
+Script-specific settings (e.g. `totalRuns`, hyperparameter grids) stay inside each script, immediately after the `sst2dParams;` call — override shared values there when needed.
+
+### 3. Run a script
+
+From the MATLAB Command Window (any of):
 
 ```matlab
-scripts/estimateSST2d
+estimateSST2d        % nominal-plant Monte Carlo
+estimateSST2dLfm     % least-favorable-model Monte Carlo
+tuneDKF              % DKF event-trigger sweep
+tuneRDKF             % RDKF event-trigger + KL-tolerance sweep
 ```
 
-This script:
+Each script:
 
-1. Creates a spatial sensor network
-2. Simulates the 2D target trajectory
-3. Runs CKF, DKF, DSEACP, RDKF, and SRDKF
-4. Computes RMSE and transmission rates
-5. Plots:
-   - true vs. estimated trajectories
-   - RMSE over time
-   - Tx‑rate over time
+1. Builds a spatial sensor network and a target plant (and, for the LFM variant, precomputes the worst-case data generator).
+2. Runs the configured Monte Carlo trials in parallel via `parfor`.
+3. **Saves the run** to `results/<scriptName>/<scriptName>_T<T>_N<nodes>s<sensors>_b<klTol>_runs<N>_<timestamp>.mat`.
+4. Reloads the saved run and plots from it (so fresh and reloaded runs produce identical figures).
 
 ---
 
-### 3. Adjustment of parameters
+## Saving and reloading results
 
-Inside `estimateSST2d.m`, the following parameters may be adjusted
+Every experiment run is persisted automatically. The filename encodes the most commonly varied parameters; the full parameter set is stored inside the `.mat`.
 
-- **Network size**
-  ```matlab
-  nodeCount = 20;
-  sensorCount = 4;
-  ```
+Example: `results/estimateSST2dLfm/estimateSST2dLfm_T1000_N100s20_b0.05_runs100_20260419-153045.mat`
 
-- **Event‑trigger parameters**
-  ```matlab
-  dkfAlpha = 10;
-  dkfBeta  = 0.2;
-  dkfDelta = 0.5;
-  ```
+The file contains a single `runData` struct with:
 
-- **Robustness tolerance**
-  ```matlab
-  rdkfb = 0.05;
-  ```
+| Field        | Contents                                                               |
+|--------------|------------------------------------------------------------------------|
+| `script`     | Name of the producing script                                            |
+| `timestamp`  | ISO-ish local time (`yyyyMMdd-HHmmss`)                                  |
+| `gitSha`     | Short git SHA at save time (best-effort)                                |
+| `params`     | Every variable defined in `sst2dParams.m`                               |
+| `extras`     | Script-specific config (`totalRuns`, hyperparameter grids/baselines)    |
+| `netGraph`   | Sensor/communication graph                                              |
+| `results`    | Per-run RMSE and TX-rate arrays (and sweep tables for tune scripts)     |
+| `samples`    | Showcase sample objects used by trajectory plots (estimate scripts)     |
 
-- **Initial covariance**
-  ```matlab
-  P0 = 1e3 * eye(4);
-  ```
+### Reload and replay figures
 
-- **Number of Monte Carlo runs**
-  ```matlab
-  totalRuns = 10;
-  ```
+```matlab
+run  = loadRun('results/estimateSST2dLfm/estimateSST2dLfm_...mat');
+plotSST2dRun(run);   % estimate-script runs
+% or
+plotTuneRun(run);    % tune-script runs
+```
+
+`plotSST2dRun` automatically detects LFM runs (via the presence of `samples.nomSample`) and draws the nominal-vs-LFM trajectory overlay. `plotTuneRun` detects RDKF runs (via a `b` field in `configs`) and emits the additional KL-tolerance panel.
 
 ---
 
 ## Output
 
-The following outputs are plottted by estimateSST2d
+Figures produced by the estimate scripts:
 
-- **Network plot**
-- **True and estimated trajectories**
-- **RMSE comparison (log scale)**
-- **Transmission rate comparison**
+- Network layout
+- True trajectory (LFM scripts additionally overlay the nominal trajectory for contrast)
+- Per-estimator estimated trajectory vs. truth
+- RMSE vs. time (log scale), averaged over Monte Carlo runs
+- Transmission rate vs. time, averaged over Monte Carlo runs
 
-Each estimator object also stores:
+Figures produced by the tune scripts:
+
+- RMSE and TX-rate vs. time for each swept parameter (one subplot pair per parameter)
+- RMSE-vs-TX-rate tradeoff scatter, color-coded by which parameter is being swept
+
+Each estimator sample object also carries:
 
 ```matlab
-result.RMSE     % RMSE over time
-result.txRate   % Transmission rate over time (for DKF/RDKF/SRDKF)
-result.X_hat    % Estimated states
+sample.RMSE     % RMSE over time
+sample.txRate   % Transmission rate over time (DKF/RDKF/SRDKF)
+sample.X_hat    % Estimated state at each node (distributed filters)
+sample.x_hat    % Estimated state (centralized filter, CKF)
 ```
-
-##Issues and todos
-
-As this is only a preliminary version of the project, several functions are not implemented:
-- Several checks are not present in the script: Connectivity, Stabilizability and Detetability
-- The plant used to simulate the dynamics for all the plants is a nominal model, ie. not stochastically generated or a worst case model. The same goes for initial conditions.
-- The matrix Psi in the robust distributed Kalman filter and robust distributed Kalman filter with stochastic trigger becomes ill-conditioned. It has not been possible to determine a mistake in the code compared to the algorithm, so it is possible that the error is due to the initial conditions or how the robust filter works with a nominal plant.
-- The way the robust kalman filter is constructed right now, its trigger is always active. Again the source of this has not been found, but the ill-conditioned Psi-matrix would probably mean that a high innovation is seen each iteration leading to exceeding the tolerance.
