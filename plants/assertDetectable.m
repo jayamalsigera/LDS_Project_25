@@ -3,7 +3,7 @@
 % Detectability is the dual of stabilizability: (A, C) is detectable iff
 % rank([lambda*I - A; C]) == n for every eigenvalue lambda of A with
 % |lambda| >= 1. If any such eigenvalue fails the rank test, that mode is
-% unobservable and unstable — the Kalman filter error covariance will not
+% unobservable and unstable - the Kalman filter error covariance will not
 % converge.
 %
 % Parameters:

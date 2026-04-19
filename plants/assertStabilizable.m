@@ -3,7 +3,7 @@
 % Uses the PBH test: (A, B) is stabilizable iff rank([lambda*I - A, B]) == n
 % for every eigenvalue lambda of A with |lambda| >= 1 (unstable or marginal).
 % If any such eigenvalue fails the rank test, that mode is uncontrollable
-% and unstable — the Kalman filters built on this model will diverge.
+% and unstable - the Kalman filters built on this model will diverge.
 %
 % Parameters:
 %   A   - nxn state transition matrix

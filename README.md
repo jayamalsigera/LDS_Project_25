@@ -14,15 +14,15 @@ Implementation follows:
 
 ## Project Structure
 
-- `estimators/` — Filter implementations: CKF (centralized baseline), DKF, DSEACP, RDKF, and SRDKF.
-- `plants/` — Target-dynamics models: the nominal 2D single-target plant and the least-favorable-model data generator, plus stabilizability/detectability checks.
-- `networks/` — Spatial sensor-network generation, consensus-weight computation, connectivity diagnostics, and graph visualization.
-- `predict/` — Robust prediction primitives used by RDKF/SRDKF (risk-sensitivity bisection, robust fusion, no-transmit prediction).
-- `fusion/` — Stochastic- and deterministic-trigger fusion conditions and data fusion.
-- `utils/` — General helpers (RMSE, bisection, Loewner-order checks, `parfor` progress bar).
-- `scripts/` — Top-level experiments (`estimateSST2d`, `estimateSST2dLfm`, `tuneDKF`, `tuneRDKF`), the shared parameter file `sst2dParams.m`, and the save/load/plot tooling that makes Monte Carlo runs reproducible.
-- `papers/` — Reference material.
-- `legacy/`, `idkf/`, `ssm/` — Archived or in-progress code outside the main pipeline.
+- `estimators/` - Filter implementations: CKF (centralized baseline), DKF, DSEACP, RDKF, and SRDKF.
+- `plants/` - Target-dynamics models: the nominal 2D single-target plant and the least-favorable-model data generator, plus stabilizability/detectability checks.
+- `networks/` - Spatial sensor-network generation, consensus-weight computation, connectivity diagnostics, and graph visualization.
+- `predict/` - Robust prediction primitives used by RDKF/SRDKF (risk-sensitivity bisection, robust fusion, no-transmit prediction).
+- `fusion/` - Stochastic- and deterministic-trigger fusion conditions and data fusion.
+- `utils/` - General helpers (RMSE, bisection, Loewner-order checks, `parfor` progress bar).
+- `scripts/` - Top-level experiments (`estimateSST2d`, `estimateSST2dLfm`, `tuneDKF`, `tuneRDKF`), the shared parameter file `sst2dParams.m`, and the save/load/plot tooling that makes Monte Carlo runs reproducible.
+- `slurm/` - SBATCH scripts for running the scripts in the department's Slurm servers.
+- `papers/` - Reference material.
 
 ---
 
@@ -36,7 +36,7 @@ Double-click `lds-proj.prj` (this puts all subfolders on the path).
 
 All four experiment scripts source `scripts/sst2dParams.m`. Edit that file to change anything shared across experiments.
 
-Script-specific settings (e.g. `totalRuns`, hyperparameter grids) stay inside each script, immediately after the `sst2dParams;` call — override shared values there when needed.
+Script-specific settings (e.g. `totalRuns`, hyperparameter grids) stay inside each script, immediately after the `sst2dParams;` call - override shared values there when needed.
 
 ### 3. Run a script
 
