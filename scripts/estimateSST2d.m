@@ -8,42 +8,7 @@ rng(42);
 
 
 %% Parameters
-
-% T = 2500; % Number of Simulation Steps
-T = 1000;
-% T = 100;
-% T = 10;
-% T = 2;
-
-Ts = 0.1; % Sampling Period
-outputNoiseStd = 10;
-
-turnRate = 0; % Straight Line
-% turnRate = 0.005; % Coordinated-turn rate [rad/s]; set to 0 for straight line
-
-x0 = [25 25 1000 1000]'; % Initial true state: [vx vy px py]
-% nodeCount = 100;% Total nodes in the network
-% sensorCount = 20; % Number of sensor nodes
-nodeCount = 20;
-sensorCount = 4;
-
-maxLength = 5000; % Spatial extent for random network generation
-
-consensusSteps = 3; % Total Iterations for DSEACP consensus (L)
-% consensusSteps = 50;
-
-% Event-trigger parameters for DKF/RDKF/SRDKF
-dkfAlpha = 1;
-% dkfAlpha = 10;
-dkfBeta = 0.2;
-dkfDelta = 0.1;
-
-% KL-divergence tolerance for robust filters (b)
-klTolerance = 0.05;
-
-% Stochastic Trigger error norm weights Matrix (Z)
-errorNormWeightsClosed = 300 * eye(length(x0));
-errorNormWeightsOpen = 300 * eye(2);
+sst2dParams;
 %% Network Definition
 disp("Creating Network")
 netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
@@ -59,11 +24,6 @@ assertDetectable(plant.A, plant.C);
 
 %% Estimators
 disp("Initializing estimators")
-
-% TODO: Review initialization
-x0_hat = x0;  %Initial estimate
- P0 = 1e3 * eye(size(x0, 1)); % No Prior
-%P0 = 1e-6 * eye(size(x0, 1));  % "Perfect Knowledge"
 
 % Initiate all filters
 ckf = CKF(plant, Ts, T);
