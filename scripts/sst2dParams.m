@@ -13,10 +13,10 @@ turnRate = 0;             % 0 = straight line; try 0.005 rad/s for coordinated t
 x0 = [25 25 1000 1000]';  % Initial true state: [vx vy px py]
 
 %% Network
-% nodeCount = 100;
-% sensorCount = 20;
-nodeCount = 20;
-sensorCount = 4;
+nodeCount = 100;
+sensorCount = 20;
+% nodeCount = 20;
+% sensorCount = 4;
 
 maxLength = 5000;         % Spatial extent for random network generation
 
@@ -32,15 +32,15 @@ dkfDelta = 1;
 klTolerance = 0.05;
 
 % Stochastic trigger error-norm weight matrices
-errorNormWeightsClosed = 300 * eye(length(x0));  % Z from the paper
-errorNormWeightsOpen = 300 * eye(2);             % Y from the paper
+errorNormWeightsClosed = 0.01 * eye(length(x0));  % Z from the paper
+errorNormWeightsOpen = 0.01 * eye(2);             % Y from the paper
 
 %% Initial estimate
 x0_hat = x0;
 P0 = 1e3 * eye(size(x0, 1));  % No prior; swap to 1e-6*I for "perfect knowledge"
 
 %% Monte Carlo
-% totalRuns = 200;
+totalRuns = 200;
 % totalRuns = 100;
-totalRuns = 10;
+% totalRuns = 10;
 % totalRuns = 2;

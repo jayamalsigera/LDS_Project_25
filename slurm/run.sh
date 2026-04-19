@@ -4,8 +4,8 @@
 #SBATCH --partition allgroups
 #SBATCH --time 24:00:00
 
-#SBATCH --mem 8G
-#SBATCH --cpus-per-task 10
+#SBATCH --mem 32G
+#SBATCH --cpus-per-task 20
 
 #SBATCH --job-name lds-proj
 #SBATCH --output results/slurm/%j-out.txt
