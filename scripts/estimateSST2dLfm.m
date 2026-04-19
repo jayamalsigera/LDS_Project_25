@@ -62,7 +62,7 @@ srdkfOpenTxRate   = zeros(totalRuns, T + 1);
 
 tic
 
-% Showcase run (serial) — keeps sample objects available for trajectory plots.
+% Showcase run (serial) - keeps sample objects available for trajectory plots.
 % Also draw a nominal-model sample for side-by-side visual comparison.
 mdlSample = lfm.simulate(x0);
 nomSample = plant.simulate(x0);

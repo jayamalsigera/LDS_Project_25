@@ -54,7 +54,7 @@ srdkfOpenTxRate   = zeros(totalRuns, T + 1);
 
 tic
 
-% Showcase run (serial) — keeps sample objects available for trajectory plots
+% Showcase run (serial) - keeps sample objects available for trajectory plots
 mdlSample = plant.simulate(x0);
 ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dseacpSample = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
