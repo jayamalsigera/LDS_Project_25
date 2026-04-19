@@ -12,4 +12,4 @@
 #SBATCH --error results/slurm/%j-err.txt
 #SBATCH --mail-type ALL
 
-srun matlab -batch "addpath(genpath('$SLURM_SUBMIT_DIR')); $1"
+srun matlab -batch "$1"
