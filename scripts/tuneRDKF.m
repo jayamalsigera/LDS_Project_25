@@ -111,39 +111,22 @@ resultsTable = table(sweepCol, alphaCol, betaCol, deltaCol, bCol, ...
                                        'MeanRMSE', 'FinalRMSE', 'MeanTxRate'});
 disp(resultsTable);
 
+%% Save run
+results = struct( ...
+  'rmseCurves', rmseCurves, 'txCurves', txCurves, ...
+  'meanRmse', meanRmse, 'finalRmse', finalRmse, 'meanTxRate', meanTxRate, ...
+  'configs', {configs}, 'resultsTable', resultsTable);
+extras = struct( ...
+  'totalRuns', totalRuns, ...
+  'alphaGrid', alphaGrid, 'betaGrid', betaGrid, ...
+  'deltaGrid', deltaGrid, 'bGrid', bGrid, ...
+  'alphaBase', alphaBase, 'betaBase', betaBase, ...
+  'deltaBase', deltaBase, 'bBase', bBase);
+savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, struct());
+
 %% Plotting
 disp("Plotting results")
-t = (0:T) * Ts;
-
-plotSweep(t, configs, rmseCurves, txCurves, 'alpha', ...
-          {'beta', betaBase, 'delta', deltaBase, 'b', bBase});
-plotSweep(t, configs, rmseCurves, txCurves, 'beta', ...
-          {'alpha', alphaBase, 'delta', deltaBase, 'b', bBase});
-plotSweep(t, configs, rmseCurves, txCurves, 'delta', ...
-          {'alpha', alphaBase, 'beta', betaBase, 'b', bBase});
-plotSweep(t, configs, rmseCurves, txCurves, 'b', ...
-          {'alpha', alphaBase, 'beta', betaBase, 'delta', deltaBase});
-
-% RMSE vs TX rate tradeoff scatter
-figure;
-colors = struct('alpha', [0.85 0.33 0.10], ...
-                'beta',  [0.00 0.45 0.74], ...
-                'delta', [0.47 0.67 0.19], ...
-                'b',     [0.49 0.18 0.56]);
-hold on;
-for i = 1:nConfigs
-  c = configs{i};
-  col = colors.(c.sweep);
-  scatter(meanTxRate(i), meanRmse(i), 60, col, 'filled', ...
-          'DisplayName', sprintf('%s=%.2g', c.sweep, c.(c.sweep)));
-  text(meanTxRate(i), meanRmse(i), ...
-       sprintf(' %s=%.2g', c.sweep, c.(c.sweep)), 'FontSize', 8);
-end
-hold off;
-xlabel('Mean Transmission Rate');
-ylabel('Mean RMSE');
-title('RDKF: RMSE vs Transmission Rate Tradeoff');
-grid on;
+plotTuneRun(loadRun(savedPath));
 
 %% Helpers
 
@@ -161,35 +144,4 @@ function [avgRmse, avgTx] = runRDKFConfig(plant, Ts, T, netGraph, ...
   end
   avgRmse = mean(rmseLog, 1);
   avgTx   = mean(txLog, 1);
-end
-
-function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs)
-  idx = find(arrayfun(@(k) strcmp(configs{k}.sweep, param), 1:numel(configs)));
-
-  fixedStr = strjoin(arrayfun(@(j) sprintf('%s=%.2g', fixedPairs{2*j-1}, fixedPairs{2*j}), ...
-                              1:numel(fixedPairs)/2, 'UniformOutput', false), ', ');
-
-  figure;
-  subplot(2, 1, 1);
-  hold on;
-  for i = idx
-    v = configs{i}.(param);
-    semilogy(t, rmseCurves(i, :), 'DisplayName', sprintf('%s=%.2g', param, v));
-  end
-  hold off;
-  set(gca, 'YScale', 'log');
-  xlabel('Time (s)'); ylabel('RMSE');
-  title(sprintf('RDKF RMSE sweep over %s (others fixed: %s)', param, fixedStr));
-  legend(); grid on;
-
-  subplot(2, 1, 2);
-  hold on;
-  for i = idx
-    v = configs{i}.(param);
-    plot(t, txCurves(i, :), 'DisplayName', sprintf('%s=%.2g', param, v));
-  end
-  hold off;
-  xlabel('Time (s)'); ylabel('TX Rate');
-  title(sprintf('RDKF Transmission Rate sweep over %s', param));
-  legend(); grid on;
 end
