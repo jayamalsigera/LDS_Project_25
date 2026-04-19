@@ -130,5 +130,5 @@ savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, sampl
 plottingEnabled = true;
 if plottingEnabled
   disp("Plotting results.")
-  plotSST2dRun(loadRun(savedPath));
+  plotSST2dRun(savedPath);
 end

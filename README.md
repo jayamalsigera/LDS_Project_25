@@ -53,7 +53,7 @@ Each script:
 
 1. Builds a spatial sensor network and a target plant (and, for the LFM variant, precomputes the worst-case data generator).
 2. Runs the configured Monte Carlo trials in parallel via `parfor`.
-3. **Saves the run** to `results/<scriptName>/<scriptName>_T<T>_N<nodes>s<sensors>_b<klTol>_runs<N>_<timestamp>.mat`.
+3. **Saves the run** to `results/<scriptName>_T<T>_N<nodes>s<sensors>_b<klTol>_runs<N>_<timestamp>.mat`.
 4. Reloads the saved run and plots from it (so fresh and reloaded runs produce identical figures).
 
 ---
@@ -62,7 +62,7 @@ Each script:
 
 Every experiment run is persisted automatically. The filename encodes the most commonly varied parameters; the full parameter set is stored inside the `.mat`.
 
-Example: `results/estimateSST2dLfm/estimateSST2dLfm_T1000_N100s20_b0.05_runs100_20260419-153045.mat`
+Example: `results/estimateSST2dLfm_T1000_N100s20_b0.05_runs100_20260419-153045.mat`
 
 The file contains a single `runData` struct with:
 
@@ -80,10 +80,9 @@ The file contains a single `runData` struct with:
 ### Reload and replay figures
 
 ```matlab
-run  = loadRun('results/estimateSST2dLfm/estimateSST2dLfm_...mat');
-plotSST2dRun(run);   % estimate-script runs
+plotSST2dRun('results/estimateSST2dLfm_...mat');   % estimate-script runs
 % or
-plotTuneRun(run);    % tune-script runs
+plotTuneRun('results/tuneRDKF_...mat');            % tune-script runs
 ```
 
 `plotSST2dRun` automatically detects LFM runs (via the presence of `samples.nomSample`) and draws the nominal-vs-LFM trajectory overlay. `plotTuneRun` detects RDKF runs (via a `b` field in `configs`) and emits the additional KL-tolerance panel.

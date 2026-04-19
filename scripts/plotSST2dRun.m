@@ -1,9 +1,11 @@
-function plotSST2dRun(runData)
+function plotSST2dRun(path)
 %PLOTSST2DRUN  Re-create figures for a saved estimateSST2d[Lfm] run.
 %
 % Works for both the nominal-plant script (estimateSST2d) and the
 % least-favorable model script (estimateSST2dLfm); the LFM branch is
 % taken when runData.samples has a nomSample field.
+
+  runData = loadRun(path);
 
   params   = runData.params;
   netGraph = runData.netGraph;
