@@ -31,9 +31,9 @@ dkfDelta = 1;
 % KL-divergence tolerance for robust filters (b); LFM uses the same b.
 klTolerance = 0.05;
 
-% Stochastic trigger error-norm weight matrices (Z)
-errorNormWeightsClosed = 300 * eye(length(x0));
-errorNormWeightsOpen = 300 * eye(2);
+% Stochastic trigger error-norm weight matrices
+errorNormWeightsClosed = 300 * eye(length(x0));  % Z from the paper
+errorNormWeightsOpen = 300 * eye(2);             % Y from the paper
 
 %% Initial estimate
 x0_hat = x0;

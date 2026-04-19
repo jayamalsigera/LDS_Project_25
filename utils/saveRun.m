@@ -1,5 +1,5 @@
 function savedPath = saveRun(scriptName, params, extras, netGraph, results, samples)
-%SAVERUN  Persist a Monte Carlo run to results/<scriptName>/<file>.mat.
+%SAVERUN  Persist a Monte Carlo run to results/<file>.mat.
 %
 % Builds a filename that encodes the most commonly varied parameters
 % (T, nodeCount, sensorCount, klTolerance, totalRuns) plus a timestamp,
@@ -11,7 +11,7 @@ function savedPath = saveRun(scriptName, params, extras, netGraph, results, samp
                 params.T, params.nodeCount, params.sensorCount, ...
                 params.klTolerance, totalRuns);
 
-  outDir = fullfile(projectRoot(), 'results', scriptName);
+  outDir = fullfile(projectRoot(), 'results');
   if ~exist(outDir, 'dir')
     mkdir(outDir);
   end
