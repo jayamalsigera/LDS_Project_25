@@ -33,7 +33,7 @@ disp("Initializing estimators")
 % Least-favorable data generator. Forward/backward sweeps (G_t, H_t, L_t) are
 % computed once here; only the per-run randn draws happen inside the parfor.
 disp("Precomputing least-favorable model")
-lfm = LeastFavorableModel(plant, P0, klTolerance, T);
+lfm = LeastFavorableModel(plant, P0, lfmKlTolerance, T);
 
 % Initiate all filters
 ckf = CKF(plant, Ts, T);
