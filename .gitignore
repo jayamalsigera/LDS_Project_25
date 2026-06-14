@@ -41,3 +41,5 @@ codegen/
 
 # Saved Monte Carlo run results
 results/
+
+sync_results.sh
