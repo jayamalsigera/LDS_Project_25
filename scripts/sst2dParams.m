@@ -32,9 +32,10 @@ dkfDelta = 1;
 klTolerance = 0.05;
 lfmKlTolerance = 0.01;
 
-% Stochastic trigger error-norm weight matrices
-errorNormWeightsClosed = 0.01 * eye(length(x0));  % Z from the paper
-errorNormWeightsOpen = 0.01 * eye(2);             % Y from the paper
+% Stochastic trigger error-norm weight matrices (both in measurement space,
+% Z in S^m_{++} per Han et al. 2015 — m=2 for this 2D sensor model)
+errorNormWeightsClosed = 0.01 * eye(2);  % Z from the paper
+errorNormWeightsOpen = 0.01 * eye(2);    % Y from the paper
 
 %% Initial estimate
 x0_hat = x0;
