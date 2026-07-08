@@ -89,7 +89,7 @@ classdef SRDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar, y);
+        c_t = self.exchange(q_bar, Psi_bar, y);
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
@@ -127,30 +127,31 @@ classdef SRDKF
     %% Information Exchange
     % While we don't have to transmit anything, in this step we're calculating
     % c^i_t for all nodes.
-    function c_t = exchange(self, X_hat, q_bar, Psi_bar, y)
+    function c_t = exchange(self, q_bar, Psi_bar, y)
       c_t = ones(self.N, 1);
       if any(isnan(Psi_bar), "all")
         return % Every node transmits on the first iteration
       end
 
       for i = 1:self.N
+        if ~self.G.Nodes(i, :).isSensor
+          % Non-sensor nodes have no measurement, so neither stochastic
+          % trigger applies. They always share their global prior (c=0).
+          c_t(i) = 0;
+          continue
+        end
+
+        idx = (2 * i - 1):(2 * i);
+        y_i = y(idx);
+
         switch lower(self.triggerMode)
           case 'closed'
             x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
-            c_t(i) = checkClosedLoopStochasticFusionConditions(X_hat(:, i), x_bar_i, self.Z);
+            C_i = self.C(idx, :);
+            c_t(i) = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar_i, self.Z);
 
           case 'open'
-            if self.G.Nodes(i, :).isSensor
-              idx = (2 * i - 1):(2 * i);
-              y_i = y(idx);
-              c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
-            else
-              % TODO: This is limiting the transmission rate to a max of S/N,
-              % since non sensor nodes never transmit. We need to review it.
-              % The paper doesn't cover the case of non sensor nodes, so we
-              % might need to get creative...
-              c_t(i) = 0;
-            end
+            c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
 
           otherwise
             error('Unknown triggerMode. Use ''closed'' or ''open''.');

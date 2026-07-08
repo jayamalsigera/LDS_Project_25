@@ -27,6 +27,14 @@ plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
 assertStabilizable(plant.A, plant.B);
 assertDetectable(plant.A, plant.C);
 
+%% System checks (stabilizability, detectability, local observability)
+disp("Checking local observability of sensor nodes")
+for i = 1:sensorCount
+  idx = (2 * i - 1):(2 * i);
+  assertLocallyObservable(plant.A, plant.C(idx, :), i);
+end
+plotSystemChecks(plant.A, plant.B, plant.C, sensorCount, netGraph);
+
 %% Estimators
 disp("Initializing estimators")
 
@@ -36,10 +44,13 @@ disp("Precomputing least-favorable model")
 lfm = LeastFavorableModel(plant, P0, lfmKlTolerance, T);
 
 % Initiate all filters
-ckf = CKF(plant, Ts, T);
-dseacp = DSEACP(plant, Ts, T, netGraph, consensusSteps);
-dkf = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
-rdkf = RDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance);
+ckf        = CKF(plant, Ts, T);
+crkf       = CRKF(plant, Ts, T, klTolerance);
+dseacp     = DSEACP(plant, Ts, T, netGraph, consensusSteps);
+dkf        = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
+rdkf       = RDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance);
+sdkfClosed = SDKF(plant, Ts, T, netGraph, dkfDelta, errorNormWeightsClosed, 'closed');
+sdkfOpen   = SDKF(plant, Ts, T, netGraph, dkfDelta, errorNormWeightsOpen,   'open');
 srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                     klTolerance, errorNormWeightsClosed, 'closed');
 srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
@@ -48,15 +59,20 @@ srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
 disp("Running Monte Carlo simulations (LFM data)")
 
 % Preallocate RMSE and Transmission rate logs
-ckfRmse = zeros(totalRuns, T + 1);
-dseacpRmse = zeros(totalRuns, T + 1);
-dkfRmse = zeros(totalRuns, T + 1);
-rdkfRmse = zeros(totalRuns, T + 1);
+ckfRmse        = zeros(totalRuns, T + 1);
+crkfRmse       = zeros(totalRuns, T + 1);
+dseacpRmse     = zeros(totalRuns, T + 1);
+dkfRmse        = zeros(totalRuns, T + 1);
+rdkfRmse       = zeros(totalRuns, T + 1);
+sdkfClosedRmse = zeros(totalRuns, T + 1);
+sdkfOpenRmse   = zeros(totalRuns, T + 1);
 srdkfClosedRmse = zeros(totalRuns, T + 1);
 srdkfOpenRmse   = zeros(totalRuns, T + 1);
 
-dkfTxRate = zeros(totalRuns, T + 1);
-rdkfTxRate = zeros(totalRuns, T + 1);
+dkfTxRate        = zeros(totalRuns, T + 1);
+rdkfTxRate       = zeros(totalRuns, T + 1);
+sdkfClosedTxRate = zeros(totalRuns, T + 1);
+sdkfOpenTxRate   = zeros(totalRuns, T + 1);
 srdkfClosedTxRate = zeros(totalRuns, T + 1);
 srdkfOpenTxRate   = zeros(totalRuns, T + 1);
 
@@ -64,64 +80,82 @@ tic
 
 % Showcase run (serial) - keeps sample objects available for trajectory plots.
 % Also draw a nominal-model sample for side-by-side visual comparison.
-mdlSample = lfm.simulate(x0);
-nomSample = plant.simulate(x0);
-ckfSample = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-dseacpSample = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-dkfSample = dkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-rdkfSample = rdkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+mdlSample        = lfm.simulate(x0);
+nomSample        = plant.simulate(x0);
+ckfSample        = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+crkfSample       = crkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+dseacpSample     = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+dkfSample        = dkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+rdkfSample       = rdkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+sdkfClosedSample = sdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+sdkfOpenSample   = sdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 srdkfClosedSample = srdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-srdkfOpenSample = srdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+srdkfOpenSample   = srdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 
-ckfRmse(1, :) = ckfSample.RMSE;
-dseacpRmse(1, :) = dseacpSample.RMSE;
-dkfRmse(1, :) = dkfSample.RMSE;
-dkfTxRate(1, :) = dkfSample.txRate;
-rdkfRmse(1, :) = rdkfSample.RMSE;
-rdkfTxRate(1, :) = rdkfSample.txRate;
-srdkfClosedRmse(1, :) = srdkfClosedSample.RMSE;
+ckfRmse(1, :)        = ckfSample.RMSE;
+crkfRmse(1, :)       = crkfSample.RMSE;
+dseacpRmse(1, :)     = dseacpSample.RMSE;
+dkfRmse(1, :)        = dkfSample.RMSE;
+dkfTxRate(1, :)      = dkfSample.txRate;
+rdkfRmse(1, :)       = rdkfSample.RMSE;
+rdkfTxRate(1, :)     = rdkfSample.txRate;
+sdkfClosedRmse(1, :)   = sdkfClosedSample.RMSE;
+sdkfClosedTxRate(1, :) = sdkfClosedSample.txRate;
+sdkfOpenRmse(1, :)   = sdkfOpenSample.RMSE;
+sdkfOpenTxRate(1, :) = sdkfOpenSample.txRate;
+srdkfClosedRmse(1, :)   = srdkfClosedSample.RMSE;
 srdkfClosedTxRate(1, :) = srdkfClosedSample.txRate;
-srdkfOpenRmse(1, :) = srdkfOpenSample.RMSE;
+srdkfOpenRmse(1, :)   = srdkfOpenSample.RMSE;
 srdkfOpenTxRate(1, :) = srdkfOpenSample.txRate;
 
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
-  % Draw one trajectory from the least-favorable model
   s = lfm.simulate(x0);
 
-  % Run each estimator on the same data and log RMSE + transmission rate
-  ckfRmse(run, :) = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
+  ckfRmse(run, :)    = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
+  crkfRmse(run, :)   = crkf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
   dseacpRmse(run, :) = dseacp.estimate(x0_hat, P0, s.X, s.Y).RMSE;
 
   dkfRun = dkf.estimate(x0_hat, P0, s.X, s.Y);
-  dkfRmse(run, :) = dkfRun.RMSE;
+  dkfRmse(run, :)   = dkfRun.RMSE;
   dkfTxRate(run, :) = dkfRun.txRate;
 
   rdkfRun = rdkf.estimate(x0_hat, P0, s.X, s.Y);
-  rdkfRmse(run, :) = rdkfRun.RMSE;
+  rdkfRmse(run, :)   = rdkfRun.RMSE;
   rdkfTxRate(run, :) = rdkfRun.txRate;
 
+  sdkfClosedRun = sdkfClosed.estimate(x0_hat, P0, s.X, s.Y);
+  sdkfClosedRmse(run, :)   = sdkfClosedRun.RMSE;
+  sdkfClosedTxRate(run, :) = sdkfClosedRun.txRate;
+
+  sdkfOpenRun = sdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
+  sdkfOpenRmse(run, :)   = sdkfOpenRun.RMSE;
+  sdkfOpenTxRate(run, :) = sdkfOpenRun.txRate;
+
   srdkfClosedRun = srdkfClosed.estimate(x0_hat, P0, s.X, s.Y);
-  srdkfClosedRmse(run, :) = srdkfClosedRun.RMSE;
+  srdkfClosedRmse(run, :)   = srdkfClosedRun.RMSE;
   srdkfClosedTxRate(run, :) = srdkfClosedRun.txRate;
 
   srdkfOpenRun = srdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
-  srdkfOpenRmse(run, :) = srdkfOpenRun.RMSE;
+  srdkfOpenRmse(run, :)   = srdkfOpenRun.RMSE;
   srdkfOpenTxRate(run, :) = srdkfOpenRun.txRate;
 end
 fprintf('Elapsed: %.3f s\n', toc);
 
 %% Save run
 results = struct( ...
-  'ckfRmse', ckfRmse, 'dseacpRmse', dseacpRmse, ...
+  'ckfRmse', ckfRmse, 'crkfRmse', crkfRmse, 'dseacpRmse', dseacpRmse, ...
   'dkfRmse', dkfRmse, 'rdkfRmse', rdkfRmse, ...
+  'sdkfClosedRmse', sdkfClosedRmse, 'sdkfOpenRmse', sdkfOpenRmse, ...
   'srdkfClosedRmse', srdkfClosedRmse, 'srdkfOpenRmse', srdkfOpenRmse, ...
   'dkfTxRate', dkfTxRate, 'rdkfTxRate', rdkfTxRate, ...
+  'sdkfClosedTxRate', sdkfClosedTxRate, 'sdkfOpenTxRate', sdkfOpenTxRate, ...
   'srdkfClosedTxRate', srdkfClosedTxRate, 'srdkfOpenTxRate', srdkfOpenTxRate);
 samples = struct( ...
   'mdlSample', mdlSample, 'nomSample', nomSample, ...
-  'ckfSample', ckfSample, 'dseacpSample', dseacpSample, ...
+  'ckfSample', ckfSample, 'crkfSample', crkfSample, 'dseacpSample', dseacpSample, ...
   'dkfSample', dkfSample, 'rdkfSample', rdkfSample, ...
+  'sdkfClosedSample', sdkfClosedSample, 'sdkfOpenSample', sdkfOpenSample, ...
   'srdkfClosedSample', srdkfClosedSample, 'srdkfOpenSample', srdkfOpenSample);
 extras = struct('totalRuns', totalRuns);
 savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);

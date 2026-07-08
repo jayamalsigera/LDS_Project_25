@@ -7,9 +7,17 @@ function savedPath = saveRun(scriptName, params, extras, netGraph, results, samp
 
   ts = char(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
   totalRuns = extras.totalRuns;
-  tag = sprintf('T%d_N%ds%d_b%g_runs%d', ...
+
+  isLfmScript = contains(scriptName, 'Lfm');
+  if isLfmScript && isfield(params, 'lfmKlTolerance')
+    bTag = sprintf('b%g_blfm%g', params.klTolerance, params.lfmKlTolerance);
+  else
+    bTag = sprintf('b%g', params.klTolerance);
+  end
+
+  tag = sprintf('T%d_N%ds%d_%s_runs%d', ...
                 params.T, params.nodeCount, params.sensorCount, ...
-                params.klTolerance, totalRuns);
+                bTag, totalRuns);
 
   outDir = fullfile(projectRoot(), 'results');
   if ~exist(outDir, 'dir')

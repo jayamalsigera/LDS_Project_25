@@ -30,7 +30,7 @@ for run = 1:totalRuns
 end
 
 %% Sweep
-zDim = length(x0);
+zDim = 2; % measurement dimension (m), Z in S^m_{++} per Han et al. 2015
 nConfigs = numel(zGrid);
 configs = cell(nConfigs, 1);
 for k = 1:nConfigs
