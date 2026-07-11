@@ -89,7 +89,7 @@ classdef SRDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(q_bar, Psi_bar, y);
+        c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Psi_bar, y);
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
@@ -127,7 +127,7 @@ classdef SRDKF
     %% Information Exchange
     % While we don't have to transmit anything, in this step we're calculating
     % c^i_t for all nodes.
-    function c_t = exchange(self, q_bar, Psi_bar, y)
+    function c_t = exchange(self, X_hat, Omega_upd, q_bar, Psi_bar, y)
       c_t = ones(self.N, 1);
       if any(isnan(Psi_bar), "all")
         return % Every node transmits on the first iteration
@@ -135,9 +135,22 @@ classdef SRDKF
 
       for i = 1:self.N
         if ~self.G.Nodes(i, :).isSensor
-          % Non-sensor nodes have no measurement, so neither stochastic
-          % trigger applies. They always share their global prior (c=0).
-          c_t(i) = 0;
+          % Non-sensor relay nodes have no measurement, so the stochastic
+          % trigger does not apply. They use the DKF deterministic
+          % estimate-change trigger so information still diffuses through
+          % the network backbone.
+          Omega_i = Omega_upd(:, :, i);
+          x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
+
+          e     = X_hat(:, i) - x_bar_i;
+          eNorm = e' * Omega_i * e;
+
+          lowerB = (1 / (1 + self.beta)) * Omega_i;
+          upperB = (1 + self.delta) * Omega_i;
+
+          if eNorm <= self.alpha && loewnerBetweenEig(lowerB, Psi_bar(:, :, i), upperB)
+            c_t(i) = 0;
+          end
           continue
         end
 

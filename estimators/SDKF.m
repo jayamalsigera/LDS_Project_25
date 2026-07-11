@@ -12,6 +12,8 @@ classdef SDKF
     Ts
     T
     % Tuning parameters
+    alpha
+    beta
     delta
     Z
     % Network
@@ -35,11 +37,13 @@ classdef SDKF
   end
 
   methods
-    function self = SDKF(plant, Ts, T, G, delta, Z, triggerMode)
+    function self = SDKF(plant, Ts, T, G, alpha, beta, delta, Z, triggerMode)
       self.Ts = Ts;
       self.T  = T;
       self.G  = G;
 
+      self.alpha = alpha;
+      self.beta  = beta;
       self.delta = delta;
       self.Z     = Z;
 
@@ -79,7 +83,7 @@ classdef SDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(q_bar, Omega_bar, y);
+        c_t = self.exchange(self.X_hat(:, :, t), Omega_upd, q_bar, Omega_bar, y);
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
@@ -111,8 +115,12 @@ classdef SDKF
       end
     end
 
-    %% Information exchange — stochastic trigger (Han et al. 2015)
-    function c_t = exchange(self, q_bar, Omega_bar, y)
+    %% Information exchange
+    % Sensor nodes use the stochastic event trigger (Han et al. 2015);
+    % non-sensor relay nodes use the DKF deterministic estimate-change
+    % trigger (Battistelli et al. 2018), so information still diffuses
+    % through the network backbone.
+    function c_t = exchange(self, X_hat, Omega_upd, q_bar, Omega_bar, y)
       c_t = ones(self.N, 1);
       if any(isnan(Omega_bar), 'all')
         return
@@ -120,7 +128,19 @@ classdef SDKF
 
       for i = 1:self.N
         if ~self.G.Nodes(i, :).isSensor
-          c_t(i) = 0;
+          % Relay node: deterministic trigger on the estimate change.
+          Omega_i = Omega_upd(:, :, i);
+          x_bar_i = Omega_bar(:, :, i) \ q_bar(:, i);
+
+          e     = X_hat(:, i) - x_bar_i;
+          eNorm = e' * Omega_i * e;
+
+          lowerB = (1 / (1 + self.beta)) * Omega_i;
+          upperB = (1 + self.delta) * Omega_i;
+
+          if eNorm <= self.alpha && loewnerBetweenEig(lowerB, Omega_bar(:, :, i), upperB)
+            c_t(i) = 0;
+          end
           continue
         end
 
