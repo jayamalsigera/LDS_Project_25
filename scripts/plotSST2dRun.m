@@ -1,9 +1,11 @@
 function plotSST2dRun(path)
-%PLOTSST2DRUN  Re-create figures for a saved estimateSST2d[Lfm] run.
+%PLOTSST2DRUN  Re-create RMSE / TX-rate figures for a saved estimateSST2d[Lfm] run.
 %
 % Works for both the nominal-plant script (estimateSST2d) and the
 % least-favorable model script (estimateSST2dLfm); the LFM branch is
 % taken when runData.samples has a nomSample field.
+%
+% Trajectory figures live in plotSST2dTrajectories.
 
   runData = loadRun(path);
 
@@ -19,113 +21,114 @@ function plotSST2dRun(path)
   % Network layout
   plotNetwork(netGraph, params.maxLength);
 
-  % Truth trajectory
-  if isLfm
-    figure
-    plot(samples.nomSample.X(3, :), samples.nomSample.X(4, :), ...
-         'DisplayName', 'Nominal');
-    hold on
-    plot(samples.mdlSample.X(3, :), samples.mdlSample.X(4, :), ...
-         'DisplayName', 'LFM');
-    hold off
-    title("Simulated Trajectory")
-    xlabel('$p_x$', 'Interpreter', 'latex');
-    ylabel('$p_y$', 'Interpreter', 'latex');
-    legend(); grid()
-  else
-    samples.mdlSample.plotTrajectory();
-    samples.mdlSample.plotOutputs();
-  end
-
-  % Estimated trajectories per filter
-  estLabels = {'CKF', 'CRKF', 'DSEA-CP', 'DKF', 'RDKF', ...
-               'SDKF-Closed', 'SDKF-Open', 'SRDKF-Closed', 'SRDKF-Open'};
-  estFields = {'ckfSample', 'crkfSample', 'dseacpSample', 'dkfSample', 'rdkfSample', ...
-               'sdkfClosedSample', 'sdkfOpenSample', 'srdkfClosedSample', 'srdkfOpenSample'};
-  for k = 1:numel(estFields)
-    if ~isfield(samples, estFields{k}); continue; end
-    est = samples.(estFields{k});
-    if isLfm
-      plotEstVsTruthWithNominal(est, estLabels{k}, ...
-                                samples.mdlSample.X, samples.nomSample.X);
-    else
-      est.plotTrajectory(samples.mdlSample.X);
-    end
-  end
-
-  % Colors grouped by estimator family; line styles separate variants within a family.
+  % Per-estimator plotting spec.
+  %   Colors grouped by estimator family; line styles separate variants within a family.
   %   Centralized  → blue family    (CKF solid, CRKF dashed)
   %   Consensus    → red/orange     (DSEA-CP solid)
   %   DKF family   → amber          (DKF solid, SDKF-Closed dashed, SDKF-Open dotted)
   %   RDKF family  → purple/magenta (RDKF solid, SRDKF-Closed dashed, SRDKF-Open dotted)
-  c_ckf          = [0.00 0.45 0.74];   % MATLAB default blue
-  c_crkf         = [0.30 0.65 0.90];   % lighter blue  (distinct from CKF)
-  c_dseacp       = [0.85 0.33 0.10];   % MATLAB default orange-red
-  c_dkf          = [0.93 0.69 0.13];   % MATLAB default amber
-  c_rdkf         = [0.49 0.18 0.56];   % MATLAB default purple
-  c_sdkf         = [0.10 0.75 0.65];   % teal  (SDKF family)
-  c_srdkf        = [0.47 0.67 0.19];   % green (SRDKF family)
+  c_ckf    = [0.00 0.45 0.74];   % MATLAB default blue
+  c_crkf   = [0.30 0.65 0.90];   % lighter blue  (distinct from CKF)
+  c_dseacp = [0.85 0.33 0.10];   % MATLAB default orange-red
+  c_dkf    = [0.93 0.69 0.13];   % MATLAB default amber
+  c_rdkf   = [0.49 0.18 0.56];   % MATLAB default purple
+  c_sdkf   = [0.10 0.75 0.65];   % teal  (SDKF family)
+  c_srdkf  = [0.47 0.67 0.19];   % green (SRDKF family)
+
+  lw = 1.3;   % base line width
+
+  % spec(label) -> struct with the field prefix, color, line style and width.
+  % RMSE data is results.[prefix 'Rmse']; TX rate is results.[prefix 'TxRate'].
+  spec = containers.Map('KeyType', 'char', 'ValueType', 'any');
+  spec('CKF')          = mkspec('ckf',         c_ckf,    '-',  lw);
+  spec('CRKF')         = mkspec('crkf',        c_crkf,   '--', lw);
+  spec('DSEA-CP')      = mkspec('dseacp',      c_dseacp, '-',  lw);
+  spec('DKF')          = mkspec('dkf',         c_dkf,    '-',  lw);
+  spec('RDKF')         = mkspec('rdkf',        c_rdkf,   '-',  lw);
+  spec('SDKF-Open')    = mkspec('sdkfOpen',    c_sdkf,   ':',  lw + 0.4);
+  spec('SDKF-Closed')  = mkspec('sdkfClosed',  c_sdkf,   '--', lw);
+  spec('SRDKF-Open')   = mkspec('srdkfOpen',   c_srdkf,  ':',  lw + 0.4);
+  spec('SRDKF-Closed') = mkspec('srdkfClosed', c_srdkf,  '--', lw);
+
+  % Comparison groups: {name, members}.
+  groups = {
+    'CKF vs CRKF',                    {'CKF', 'CRKF'};
+    'CKF vs DSEA-CP vs DKF',          {'CKF', 'DSEA-CP', 'DKF'};
+    'DKF vs RDKF',                    {'DKF', 'RDKF'};
+    'DKF vs SDKF-Open vs SRDKF-Open', {'DKF', 'SDKF-Open', 'SRDKF-Open'};
+    'DKF vs SDKF-Closed vs SRDKF-Closed', {'DKF', 'SDKF-Closed', 'SRDKF-Closed'};
+  };
 
   t = (0:T) * Ts;
 
-  lw = 1.3;   % uniform line width
+  for g = 1:size(groups, 1)
+    name    = groups{g, 1};
+    members = groups{g, 2};
 
-  % RMSE comparison
-  figure
-  hold on
-  semilogy(t, mean(results.ckfRmse,    1), '-',  'Color', c_ckf,    'LineWidth', lw, 'DisplayName', 'CKF');
-  if isfield(results, 'crkfRmse')
-    semilogy(t, mean(results.crkfRmse, 1), '--', 'Color', c_crkf,   'LineWidth', lw, 'DisplayName', 'CRKF');
-  end
-  semilogy(t, mean(results.dseacpRmse, 1), '-',  'Color', c_dseacp, 'LineWidth', lw, 'DisplayName', 'DSEA-CP');
-  semilogy(t, mean(results.dkfRmse,    1), '-',  'Color', c_dkf,    'LineWidth', lw, 'DisplayName', 'DKF');
-  semilogy(t, mean(results.rdkfRmse,   1), '-',  'Color', c_rdkf,   'LineWidth', lw, 'DisplayName', 'RDKF');
-  if isfield(results, 'sdkfClosedRmse')
-    semilogy(t, mean(results.sdkfClosedRmse, 1), '--', 'Color', c_sdkf,  'LineWidth', lw, 'DisplayName', 'SDKF-Closed');
-    semilogy(t, mean(results.sdkfOpenRmse,   1), ':',  'Color', c_sdkf,  'LineWidth', lw+0.4, 'DisplayName', 'SDKF-Open');
-  end
-  semilogy(t, mean(results.srdkfClosedRmse, 1), '--', 'Color', c_srdkf, 'LineWidth', lw, 'DisplayName', 'SRDKF-Closed');
-  semilogy(t, mean(results.srdkfOpenRmse,   1), ':',  'Color', c_srdkf, 'LineWidth', lw+0.4, 'DisplayName', 'SRDKF-Open');
-  hold off
-  title(sprintf('RMSE vs Time%s', optstr(isLfm, ' (LFM data)', '')));
-  xlabel('Time (s)'); ylabel('RMSE');
-  legend('Location', 'northeast'); grid();
+    rmseMembers = presentMembers(results, spec, members, 'Rmse');
+    % A single-line TX-rate plot (e.g. DKF alone) is not worth showing.
+    txMembers   = presentMembers(results, spec, members, 'TxRate');
+    if numel(txMembers) < 2; txMembers = {}; end
 
-  % Transmission rate comparison
-  figure
-  hold on
-  plot(t, mean(results.dkfTxRate,  1), '-',  'Color', c_dkf,   'LineWidth', lw, 'DisplayName', 'DKF');
-  plot(t, mean(results.rdkfTxRate, 1), '-',  'Color', c_rdkf,  'LineWidth', lw, 'DisplayName', 'RDKF');
-  if isfield(results, 'sdkfClosedTxRate')
-    plot(t, mean(results.sdkfClosedTxRate, 1), '--', 'Color', c_sdkf,  'LineWidth', lw, 'DisplayName', 'SDKF-Closed');
-    plot(t, mean(results.sdkfOpenTxRate,   1), ':',  'Color', c_sdkf,  'LineWidth', lw+0.4, 'DisplayName', 'SDKF-Open');
+    if ~isempty(rmseMembers) && ~isempty(txMembers)
+      % Both metrics available: side-by-side subplots.
+      figure
+      subplot(1, 2, 1);
+      drawMetric(t, results, spec, rmseMembers, 'Rmse', name, isLfm);
+      subplot(1, 2, 2);
+      drawMetric(t, results, spec, txMembers, 'TxRate', name, isLfm);
+    else
+      if ~isempty(rmseMembers)
+        figure; drawMetric(t, results, spec, rmseMembers, 'Rmse', name, isLfm);
+      end
+      if ~isempty(txMembers)
+        figure; drawMetric(t, results, spec, txMembers, 'TxRate', name, isLfm);
+      end
+    end
   end
-  plot(t, mean(results.srdkfClosedTxRate, 1), '--', 'Color', c_srdkf, 'LineWidth', lw, 'DisplayName', 'SRDKF-Closed');
-  plot(t, mean(results.srdkfOpenTxRate,   1), ':',  'Color', c_srdkf, 'LineWidth', lw+0.4, 'DisplayName', 'SRDKF-Open');
+end
+
+function s = mkspec(prefix, color, style, lw)
+  s = struct('prefix', prefix, 'color', color, 'style', style, 'lw', lw);
+end
+
+function present = presentMembers(results, spec, members, suffix)
+% Members of a group for which the requested metric field exists.
+  present = {};
+  for k = 1:numel(members)
+    s = spec(members{k});
+    if isfield(results, [s.prefix suffix])
+      present{end+1} = members{k}; %#ok<AGROW>
+    end
+  end
+end
+
+function drawMetric(t, results, spec, members, suffix, groupName, isLfm)
+% Draw one metric ('Rmse' or 'TxRate') into the current axes.
+  isRmse = strcmp(suffix, 'Rmse');
+
+  hold on
+  for k = 1:numel(members)
+    s = spec(members{k});
+    y = mean(results.([s.prefix suffix]), 1);
+    if isRmse
+      semilogy(t, y, s.style, 'Color', s.color, 'LineWidth', s.lw, 'DisplayName', members{k});
+    else
+      plot(t, y, s.style, 'Color', s.color, 'LineWidth', s.lw, 'DisplayName', members{k});
+    end
+  end
   hold off
-  title(sprintf('TX Rate vs Time%s', optstr(isLfm, ' (LFM data)', '')));
-  xlabel('Time (s)'); ylabel('TX Rate');
+
+  if isRmse
+    metricName = 'RMSE'; ylab = 'RMSE';
+  else
+    metricName = 'TX Rate'; ylab = 'TX Rate';
+  end
+  title(sprintf('%s vs Time — %s%s', metricName, groupName, optstr(isLfm, ' (LFM data)', '')));
+  xlabel('Time (s)'); ylabel(ylab);
   legend('Location', 'northeast'); grid();
 end
 
 function s = optstr(cond, a, b)
   if cond; s = a; else; s = b; end
-end
-
-function plotEstVsTruthWithNominal(estSample, label, Xlfm, Xnom)
-  if isprop(estSample, 'X_hat')
-    meanX_hat = squeeze(mean(estSample.X_hat, 2));
-  else
-    meanX_hat = estSample.x_hat;
-  end
-  figure
-  plot(meanX_hat(3, :), meanX_hat(4, :), 'DisplayName', label);
-  hold on
-  plot(Xlfm(3, :), Xlfm(4, :), 'DisplayName', 'LFM truth');
-  plot(Xnom(3, :), Xnom(4, :), '--', 'DisplayName', 'Nominal');
-  hold off
-  title(sprintf("%s Estimated Trajectory", label));
-  xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-  ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-  legend(); grid();
 end
