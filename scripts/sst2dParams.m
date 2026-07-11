@@ -34,8 +34,8 @@ lfmKlTolerance = 0.01;
 
 % Stochastic trigger error-norm weight matrices (both in measurement space,
 % Z in S^m_{++} per Han et al. 2015 — m=2 for this 2D sensor model)
-errorNormWeightsClosed = 0.01 * eye(2);  % Z from the paper
-errorNormWeightsOpen = 0.01 * eye(2);    % Y from the paper
+errorNormWeightsClosed = 1e-4 * eye(2);  % Z (closed-loop, innovation space)
+errorNormWeightsOpen = 1e-6 * eye(2);    % Y (open-loop, raw-measurement space)
 
 %% Initial estimate
 x0_hat = x0;
