@@ -1,16 +1,85 @@
-function plotTuneRun(path)
-%PLOTTUNERUN  Re-create figures for a saved tune* run.
+function plotTuneRun(varargin)
+%PLOTTUNERUN  Re-create figures for one or more saved tune* runs.
+%
+%   plotTuneRun(path)
+%       For a single run: per-sweep RMSE/TX-vs-time figures plus the
+%       RMSE-vs-TX-rate tradeoff curve.
+%
+%   plotTuneRun(path1, path2, ...)
+%       Overlay the tradeoff curves of several runs on one axis (e.g. a
+%       matched-rate SDKF-Closed vs DKF comparison). The per-sweep time
+%       figures are skipped to keep the overlay readable.
 %
 % Parameter-agnostic: the set of swept parameters is discovered from the
-% stored configs. Each config must carry a 'sweep' field naming the
-% parameter it varies; extras must carry 'filterName' (string) and
-% 'bases' (struct of param -> baseline value).
+% stored configs; each config carries a 'sweep' field naming its varied
+% parameter. When a run stores steady-state RMSE stats (ssRmseMean /
+% ssRmseStd) the tradeoff uses them with +/- 1 std error bars; otherwise it
+% falls back to the time-averaged mean RMSE with no bars (older runs).
 
-  runData = loadRun(path);
+  paths = varargin;
+  if isempty(paths)
+    error('plotTuneRun:noInput', 'Provide at least one saved tune* .mat path.');
+  end
 
-  params   = runData.params;
-  extras   = runData.extras;
-  results  = runData.results;
+  % Per-sweep time-series figures only make sense for a single run.
+  if numel(paths) == 1
+    plotTimeSeriesFigures(loadRun(paths{1}));
+  end
+
+  % Combined RMSE-vs-TX tradeoff (works for 1..N runs).
+  styles = {'-', '--', ':', '-.'};
+  figure; hold on;
+  allSs = true;
+  for k = 1:numel(paths)
+    runData = loadRun(paths{k});
+    r       = runData.results;
+    fn      = runData.extras.filterName;
+    configs = r.configs;
+    hasSs   = isfield(r, 'ssRmseMean');
+    allSs   = allSs && hasSs;
+    baseCol = familyColor(fn, k);
+
+    sweeps = unique(cellfun(@(c) string(c.sweep), configs, 'UniformOutput', true));
+    multi  = (numel(paths) > 1) || (numel(sweeps) > 1);
+    for si = 1:numel(sweeps)
+      sw  = char(sweeps(si));
+      idx = find(cellfun(@(c) strcmp(c.sweep, sw), configs));
+
+      x = r.meanTxRate(idx);
+      if hasSs
+        y = r.ssRmseMean(idx); yerr = r.ssRmseStd(idx);
+      else
+        y = r.meanRmse(idx);   yerr = zeros(numel(idx), 1);
+      end
+      knob = arrayfun(@(j) configs{j}.(sw), idx);
+
+      % Sort by TX rate so the connecting line runs left-to-right.
+      [x, ord] = sort(x(:));
+      y = y(ord); yerr = yerr(ord); knob = knob(ord);
+
+      style = styles{mod(si - 1, numel(styles)) + 1};
+      if multi, label = sprintf('%s / %s', fn, sw); else, label = fn; end
+      errorbar(x, y, yerr, ['o' style], 'Color', baseCol, ...
+               'MarkerFaceColor', baseCol, 'LineWidth', 1.3, 'CapSize', 4, ...
+               'DisplayName', label);
+      for i = 1:numel(x)
+        text(x(i), y(i), sprintf('  %s=%.2g', sw, knob(i)), ...
+             'Color', baseCol, 'FontSize', 7, 'VerticalAlignment', 'bottom');
+      end
+    end
+  end
+  hold off;
+  xlabel('Mean Transmission Rate');
+  if allSs, ylabel('Steady-state RMSE'); else, ylabel('Mean RMSE'); end
+  title('RMSE vs Transmission Rate Tradeoff');
+  legend('Location', 'best'); grid on;
+end
+
+function plotTimeSeriesFigures(runData)
+% Per-sweep RMSE and TX rate vs time (one figure per swept parameter).
+  params  = runData.params;
+  extras  = runData.extras;
+  results = runData.results;
 
   T  = params.T;
   Ts = params.Ts;
@@ -19,22 +88,14 @@ function plotTuneRun(path)
   configs    = results.configs;
   rmseCurves = results.rmseCurves;
   txCurves   = results.txCurves;
-  meanRmse   = results.meanRmse;
-  meanTxRate = results.meanTxRate;
   nConfigs   = numel(configs);
 
   filterName = extras.filterName;
   bases      = extras.bases;
 
   sweepNames = unique(arrayfun(@(k) string(configs{k}.sweep), 1:nConfigs));
-  palette = lines(numel(sweepNames));
-  sweepColors = struct();
   for k = 1:numel(sweepNames)
-    sweepColors.(char(sweepNames(k))) = palette(k, :);
-  end
-
-  for k = 1:numel(sweepNames)
-    sweepName = char(sweepNames(k));
+    sweepName  = char(sweepNames(k));
     fixedNames = setdiff(fieldnames(bases), {sweepName});
     fixedPairs = cell(1, 2 * numel(fixedNames));
     for j = 1:numel(fixedNames)
@@ -43,23 +104,6 @@ function plotTuneRun(path)
     end
     plotSweep(t, configs, rmseCurves, txCurves, sweepName, fixedPairs, filterName);
   end
-
-  % RMSE vs TX rate tradeoff scatter
-  figure;
-  hold on;
-  for i = 1:nConfigs
-    c = configs{i};
-    col = sweepColors.(c.sweep);
-    scatter(meanTxRate(i), meanRmse(i), 60, col, 'filled', ...
-            'DisplayName', sprintf('%s=%.2g', c.sweep, c.(c.sweep)));
-    text(meanTxRate(i), meanRmse(i), ...
-         sprintf(' %s=%.2g', c.sweep, c.(c.sweep)), 'FontSize', 8);
-  end
-  hold off;
-  xlabel('Mean Transmission Rate');
-  ylabel('Mean RMSE');
-  title(sprintf('%s: RMSE vs Transmission Rate Tradeoff', filterName));
-  grid on;
 end
 
 function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs, filterName)
@@ -91,4 +135,21 @@ function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs, filterNa
   xlabel('Time (s)'); ylabel('TX Rate');
   title(sprintf('%s Transmission Rate sweep over %s', filterName, param));
   legend(); grid on;
+end
+
+function col = familyColor(filterName, fallbackIdx)
+% Repo family colours (see plotSST2dRun); fallback palette otherwise.
+  switch filterName
+    case 'DKF'
+      col = [0.93 0.69 0.13];   % amber
+    case {'SDKF-Closed', 'SDKF-Open'}
+      col = [0.10 0.75 0.65];   % teal
+    case {'SRDKF-Closed', 'SRDKF-Open'}
+      col = [0.47 0.67 0.19];   % green
+    case 'RDKF'
+      col = [0.49 0.18 0.56];   % purple
+    otherwise
+      pal = lines(max(fallbackIdx, 7));
+      col = pal(fallbackIdx, :);
+  end
 end
