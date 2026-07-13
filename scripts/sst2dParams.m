@@ -14,7 +14,11 @@ x0 = [25 25 1000 1000]';  % Initial true state: [vx vy px py]
 
 %% Network
 nodeCount = 100;
-sensorCount = 20;
+sensorCount = 100;
+
+% The stochastic trigger implementations can't handle non sensor nodes properly
+% sensorCount = 20;
+
 % nodeCount = 20;
 % sensorCount = 4;
 
