@@ -21,9 +21,16 @@ function plotTuneRun(varargin)
     error('plotTuneRun:noInput', 'Provide at least one saved tune* .mat path.');
   end
 
-  % Per-sweep time-series figures only make sense for a single run.
+  % A single delta x beta grid run gets its own scatter + heatmap figures
+  % (the OAT 'sweep'=field-name convention below does not apply to grids).
   if numel(paths) == 1
-    plotTimeSeriesFigures(loadRun(paths{1}));
+    runData = loadRun(paths{1});
+    if isfield(runData.extras, 'gridAxisRow') && isfield(runData.extras, 'gridAxisCol')
+      plotGridRun(runData);
+      return;
+    end
+    % Per-sweep time-series figures only make sense for a single run.
+    plotTimeSeriesFigures(runData);
   end
 
   % Combined RMSE-vs-TX tradeoff (works for 1..N runs).
@@ -135,6 +142,73 @@ function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs, filterNa
   xlabel('Time (s)'); ylabel('TX Rate');
   title(sprintf('%s Transmission Rate sweep over %s', filterName, param));
   legend(); grid on;
+end
+
+function plotGridRun(runData)
+% Two figures for a full-factorial (row x col) grid run:
+%   1. RMSE-vs-TX scatter with the Pareto frontier highlighted;
+%   2. RMSE and TX heatmaps over the (row, col) grid.
+  r      = runData.results;
+  extras = runData.extras;
+  fn     = extras.filterName;
+  col    = familyColor(fn, 1);
+
+  rowAx = extras.gridAxisRow;   % inner loop -> reshape rows
+  colAx = extras.gridAxisCol;   % outer loop -> reshape cols
+  nRow  = numel(rowAx.values);
+  nCol  = numel(colAx.values);
+
+  x    = r.meanTxRate(:);
+  hasSs = isfield(r, 'ssRmseMean');
+  if hasSs
+    y = r.ssRmseMean(:); yerr = r.ssRmseStd(:); yLab = 'Steady-state RMSE';
+  else
+    y = r.meanRmse(:);   yerr = zeros(size(y)); yLab = 'Mean RMSE';
+  end
+  if isfield(r, 'onFront'), front = logical(r.onFront(:)); else, front = paretoFront(x, y); end
+
+  configs = r.configs;
+  rowVal = arrayfun(@(k) configs{k}.(rowAx.name), 1:numel(configs))';
+  colVal = arrayfun(@(k) configs{k}.(colAx.name), 1:numel(configs))';
+
+  %% Figure 1: tradeoff scatter + Pareto frontier
+  figure; hold on;
+  errorbar(x, y, yerr, 'o', 'Color', col, 'MarkerFaceColor', col, ...
+           'LineStyle', 'none', 'CapSize', 4, 'DisplayName', [fn ' configs']);
+  [xf, ord] = sort(x(front));
+  yf = y(front); yf = yf(ord);
+  plot(xf, yf, '-', 'Color', col, 'LineWidth', 1.6, 'DisplayName', 'Pareto frontier');
+  for i = 1:numel(x)
+    text(x(i), y(i), sprintf('  %s=%.2g, %s=%.2g', colAx.name, colVal(i), rowAx.name, rowVal(i)), ...
+         'Color', col, 'FontSize', 7, 'VerticalAlignment', 'bottom');
+  end
+  hold off;
+  xlabel('Mean Transmission Rate'); ylabel(yLab);
+  title(sprintf('%s: RMSE vs TX tradeoff (%s x %s grid)', fn, rowAx.name, colAx.name));
+  legend('Location', 'best'); grid on;
+
+  %% Figure 2: RMSE and TX heatmaps over the grid
+  % Config order is col outer, row inner -> column-major reshape(v, nRow, nCol).
+  Mrmse = reshape(y, nRow, nCol);
+  Mtx   = reshape(x, nRow, nCol);
+  figure;
+  gridHeatmap(subplot(1, 2, 1), Mrmse, colAx, rowAx, sprintf('%s %s', fn, yLab));
+  gridHeatmap(subplot(1, 2, 2), Mtx,   colAx, rowAx, sprintf('%s Mean TX Rate', fn));
+end
+
+function gridHeatmap(ax, M, colAx, rowAx, ttl)
+  imagesc(ax, M);
+  set(ax, 'XTick', 1:numel(colAx.values), 'XTickLabel', colAx.values, ...
+          'YTick', 1:numel(rowAx.values), 'YTickLabel', rowAx.values, ...
+          'YDir', 'normal');
+  xlabel(ax, colAx.name); ylabel(ax, rowAx.name);
+  title(ax, ttl); colorbar(ax);
+  for ci = 1:numel(colAx.values)
+    for ri = 1:numel(rowAx.values)
+      text(ax, ci, ri, sprintf('%.2g', M(ri, ci)), ...
+           'HorizontalAlignment', 'center', 'FontSize', 7, 'Color', [0 0 0]);
+    end
+  end
 end
 
 function col = familyColor(filterName, fallbackIdx)
