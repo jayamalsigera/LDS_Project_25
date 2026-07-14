@@ -13,6 +13,8 @@ rng(42);
 %% Fixed parameters
 sst2dParams;
 
+totalTuneRuns = 50;   % fewer runs than the estimate scripts; enough to separate configs
+
 %% Hyperparameter grid
 zGrid = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
 
@@ -25,8 +27,8 @@ plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
 
 %% Pre-generate trajectories so all configurations see the same data
 disp("Pre-generating Monte Carlo trajectories")
-samples = cell(totalRuns, 1);
-for run = 1:totalRuns
+samples = cell(totalTuneRuns, 1);
+for run = 1:totalTuneRuns
   samples{run} = plant.simulate(x0);
 end
 
@@ -74,7 +76,7 @@ results = struct( ...
   'meanRmse', meanRmse, 'finalRmse', finalRmse, 'meanTxRate', meanTxRate, ...
   'configs', {configs}, 'resultsTable', resultsTable);
 extras = struct( ...
-  'totalRuns', totalRuns, 'filterName', 'SRDKF-Open', ...
+  'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Open', ...
   'zGrid', zGrid, ...
   'bases', struct('z', NaN));
 savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, struct());
