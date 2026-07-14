@@ -48,30 +48,11 @@ for k = 1:nConfigs
   configs{k} = struct('z', zGrid(k), 'sweep', 'z');
 end
 
-meanRmse   = zeros(nConfigs, 1);
-finalRmse  = zeros(nConfigs, 1);
-meanTxRate = zeros(nConfigs, 1);
-ssRmseMean = zeros(nConfigs, 1);
-ssRmseStd  = zeros(nConfigs, 1);
-rmseCurves = zeros(nConfigs, T + 1);
-txCurves   = zeros(nConfigs, T + 1);
-
 disp("Running simulations...")
-parfor i = 1:nConfigs
-  fprintf('Sweeping SDKF-Closed Z %d/%d\n', i, nConfigs);
-  c = configs{i};
-  [rmseRow, txRow, ssM, ssS] = runSDKFConfig(plant, Ts, T, netGraph, ...
-                                             dkfAlpha, dkfBeta, dkfDelta, ...
-                                             c.z * eye(zDim), 'closed', ...
-                                             samples, x0_hat, P0);
-  rmseCurves(i, :) = rmseRow;
-  txCurves(i, :)   = txRow;
-  meanRmse(i)   = mean(rmseRow);
-  finalRmse(i)  = rmseRow(end);
-  meanTxRate(i) = mean(txRow(2:end));   % drop the t=0 sample (always 0)
-  ssRmseMean(i) = ssM;
-  ssRmseStd(i)  = ssS;
-end
+makeFilter = @(c) SDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                       c.z * eye(zDim), 'closed');
+[meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, rmseCurves, txCurves] = ...
+    evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T);
 
 %% Results table
 zCol     = arrayfun(@(k) configs{k}.z, 1:nConfigs)';
@@ -98,23 +79,3 @@ savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, struc
 %% Plotting
 disp("Plotting results")
 plotTuneRun(savedPath);
-
-%% Helpers
-
-function [avgRmse, avgTx, ssMean, ssStd] = runSDKFConfig(plant, Ts, T, netGraph, ...
-                                                         alpha, beta, delta, Z, triggerMode, ...
-                                                         samples, x0_hat, P0)
-  sdkf = SDKF(plant, Ts, T, netGraph, alpha, beta, delta, Z, triggerMode);
-  nRuns = numel(samples);
-  rmseLog = zeros(nRuns, T + 1);
-  txLog   = zeros(nRuns, T + 1);
-  for run = 1:nRuns
-    s = samples{run};
-    out = sdkf.estimate(x0_hat, P0, s.X, s.Y);
-    rmseLog(run, :) = out.RMSE;
-    txLog(run, :)   = out.txRate;
-  end
-  avgRmse = mean(rmseLog, 1);
-  avgTx   = mean(txLog, 1);
-  [ssMean, ssStd] = ssRmseStats(rmseLog, T);
-end
