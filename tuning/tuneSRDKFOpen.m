@@ -40,40 +40,27 @@ for k = 1:nConfigs
   configs{k} = struct('z', zGrid(k), 'sweep', 'z');
 end
 
-meanRmse = zeros(nConfigs, 1);
-finalRmse = zeros(nConfigs, 1);
-meanTxRate = zeros(nConfigs, 1);
-rmseCurves = zeros(nConfigs, T + 1);
-txCurves   = zeros(nConfigs, T + 1);
-
 disp("Running simulations...")
-parfor i = 1:nConfigs
-  fprintf('Sweeping SRDKF-Open Z %d/%d\n', i, nConfigs);
-  c = configs{i};
-  [rmseRow, txRow] = runSRDKFConfig(plant, Ts, T, netGraph, ...
-                                    dkfAlpha, dkfBeta, dkfDelta, klTolerance, ...
-                                    c.z * eye(zDim), 'open', ...
-                                    samples, x0_hat, P0);
-  rmseCurves(i, :) = rmseRow;
-  txCurves(i, :)   = txRow;
-  meanRmse(i)   = mean(rmseRow);
-  finalRmse(i)  = rmseRow(end);
-  meanTxRate(i) = mean(txRow);
-end
+makeFilter = @(c) SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                        klTolerance, c.z * eye(zDim), 'open');
+[meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, rmseCurves, txCurves] = ...
+    evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T);
 
 %% Results table
 zCol     = arrayfun(@(k) configs{k}.z, 1:nConfigs)';
 sweepCol = arrayfun(@(k) string(configs{k}.sweep), 1:nConfigs)';
 
-resultsTable = table(sweepCol, zCol, meanRmse, finalRmse, meanTxRate, ...
+resultsTable = table(sweepCol, zCol, meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, ...
                      'VariableNames', {'Sweep', 'z', ...
-                                       'MeanRMSE', 'FinalRMSE', 'MeanTxRate'});
+                                       'MeanRMSE', 'FinalRMSE', 'MeanTxRate', ...
+                                       'SsRMSE', 'SsRMSEStd'});
 disp(resultsTable);
 
 %% Save run
 results = struct( ...
   'rmseCurves', rmseCurves, 'txCurves', txCurves, ...
   'meanRmse', meanRmse, 'finalRmse', finalRmse, 'meanTxRate', meanTxRate, ...
+  'ssRmseMean', ssRmseMean, 'ssRmseStd', ssRmseStd, ...
   'configs', {configs}, 'resultsTable', resultsTable);
 extras = struct( ...
   'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Open', ...
@@ -84,22 +71,3 @@ savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, struc
 %% Plotting
 disp("Plotting results")
 plotTuneRun(savedPath);
-
-%% Helpers
-
-function [avgRmse, avgTx] = runSRDKFConfig(plant, Ts, T, netGraph, ...
-                                           alpha, beta, delta, b, Z, triggerMode, ...
-                                           samples, x0_hat, P0)
-  srdkf = SRDKF(plant, Ts, T, netGraph, alpha, beta, delta, b, Z, triggerMode);
-  nRuns = numel(samples);
-  rmseLog = zeros(nRuns, T + 1);
-  txLog   = zeros(nRuns, T + 1);
-  for run = 1:nRuns
-    s = samples{run};
-    out = srdkf.estimate(x0_hat, P0, s.X, s.Y);
-    rmseLog(run, :) = out.RMSE;
-    txLog(run, :)   = out.txRate;
-  end
-  avgRmse = mean(rmseLog, 1);
-  avgTx   = mean(txLog, 1);
-end
