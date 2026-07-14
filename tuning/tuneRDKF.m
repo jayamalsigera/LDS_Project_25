@@ -58,29 +58,10 @@ for bi = 1:nBeta
   end
 end
 
-meanRmse   = zeros(nConfigs, 1);
-finalRmse  = zeros(nConfigs, 1);
-meanTxRate = zeros(nConfigs, 1);
-ssRmseMean = zeros(nConfigs, 1);
-ssRmseStd  = zeros(nConfigs, 1);
-rmseCurves = zeros(nConfigs, T + 1);
-txCurves   = zeros(nConfigs, T + 1);
-
 disp("Running simulations...")
-parfor i = 1:nConfigs
-  fprintf('Sweeping RDKF grid %d/%d\n', i, nConfigs);
-  c = configs{i};
-  [rmseRow, txRow, ssM, ssS] = runRDKFConfig(plant, Ts, T, netGraph, ...
-                                             c.alpha, c.beta, c.delta, c.b, ...
-                                             samples, x0_hat, P0);
-  rmseCurves(i, :) = rmseRow;
-  txCurves(i, :)   = txRow;
-  meanRmse(i)   = mean(rmseRow);
-  finalRmse(i)  = rmseRow(end);
-  meanTxRate(i) = mean(txRow(2:end));   % drop the t=0 sample (always 0)
-  ssRmseMean(i) = ssM;
-  ssRmseStd(i)  = ssS;
-end
+makeFilter = @(c) RDKF(plant, Ts, T, netGraph, c.alpha, c.beta, c.delta, c.b);
+[meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, rmseCurves, txCurves] = ...
+    evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T);
 
 %% Results table + Pareto frontier
 betaCol  = arrayfun(@(k) configs{k}.beta,  1:nConfigs)';
@@ -113,22 +94,3 @@ savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, struc
 %% Plotting
 disp("Plotting results")
 plotTuneRun(savedPath);
-
-%% Helpers
-
-function [avgRmse, avgTx, ssMean, ssStd] = runRDKFConfig(plant, Ts, T, netGraph, ...
-                                                         alpha, beta, delta, b, samples, x0_hat, P0)
-  rdkf = RDKF(plant, Ts, T, netGraph, alpha, beta, delta, b);
-  nRuns = numel(samples);
-  rmseLog = zeros(nRuns, T + 1);
-  txLog   = zeros(nRuns, T + 1);
-  for run = 1:nRuns
-    s = samples{run};
-    out = rdkf.estimate(x0_hat, P0, s.X, s.Y);
-    rmseLog(run, :) = out.RMSE;
-    txLog(run, :)   = out.txRate;
-  end
-  avgRmse = mean(rmseLog, 1);
-  avgTx   = mean(txLog, 1);
-  [ssMean, ssStd] = ssRmseStats(rmseLog, T);
-end

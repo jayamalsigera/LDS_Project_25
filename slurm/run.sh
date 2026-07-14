@@ -4,7 +4,7 @@
 #SBATCH --partition allgroups
 #SBATCH --time 24:00:00
 
-#SBATCH --mem 32G
+#SBATCH --mem 48G
 #SBATCH --cpus-per-task 20
 
 #SBATCH --job-name lds-proj
