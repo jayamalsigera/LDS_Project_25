@@ -49,8 +49,7 @@ for k = 1:nConfigs
 end
 
 disp("Running simulations...")
-makeFilter = @(c) SDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
-                       c.z * eye(zDim), 'closed');
+makeFilter = @(c) SDKF(plant, Ts, T, netGraph, dkfDelta, c.z * eye(zDim), 'closed');
 [meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, rmseCurves, txCurves] = ...
     evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T);
 
