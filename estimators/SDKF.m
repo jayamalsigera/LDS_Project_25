@@ -7,6 +7,14 @@
 % This serves as a direct comparison partner for SRDKF: same stochastic
 % trigger, same network fusion, but no model-uncertainty robustness.
 %
+% Negative-information fusion (Han et al. 2015, Thm 2, eqs 24-26): a node
+% always uses its OWN measurement fully. When a sensor neighbor j stays
+% silent, the receiving node reconstructs j's contribution with the
+% enlarged-noise pseudo-update on j's globally known prior — R_eff = R_j +
+% Z^-1, mean left at the prior, covariance still tightened — instead of the
+% discounted stale prior q_bar/(1+delta). Silence ("innovation was small") is
+% itself information. Validated standalone in tests/clsetKfUnitTest.m.
+%
 classdef SDKF
   properties
     Ts
@@ -90,7 +98,7 @@ classdef SDKF
       self.RMSE = calculateRmse(self.X_hat, X);
     end
 
-    %% Correction step
+    %% Correction step — full local measurement update (own measurement always used)
     function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
       q_upd     = zeros(self.n, self.N);
       Omega_upd = zeros(self.n, self.n, self.N);
@@ -146,6 +154,7 @@ classdef SDKF
     function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
       q_fused     = zeros(self.n, self.N);
       Omega_fused = zeros(self.n, self.n, self.N);
+      Zinv = self.Z \ eye(size(self.Z, 1));
 
       for i = 1:self.N
         [~, nids] = inedges(self.G, i);
@@ -156,7 +165,26 @@ classdef SDKF
           if (i == j) || c_t(j)
             q_fused(:, i)       = q_fused(:, i)       + w_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
+          elseif self.G.Nodes(j, :).isSensor
+            % Silent sensor neighbor: reconstruct its contribution with Han's
+            % negative-information update on j's globally known prior. Silence
+            % => innovation was sub-threshold => mean stays at the prior x_bar_j
+            % while the covariance still tightens by C_j' inv(R_j + inv(Z)) C_j.
+            jdx  = (2 * j - 1):(2 * j);
+            C_j  = self.C(jdx, :);
+            R_j  = self.R(jdx, jdx);
+            Reff = R_j + Zinv;
+            info = C_j' * (Reff \ C_j);
+
+            x_bar_j     = Omega_bar(:, :, j) \ q_bar(:, j);
+            q_recon     = q_bar(:, j)         + info * x_bar_j;
+            Omega_recon = Omega_bar(:, :, j)  + info;
+
+            q_fused(:, i)       = q_fused(:, i)       + w_ij * q_recon;
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_recon;
           else
+            % Silent non-sensor (relay) neighbor: no measurement, so silence
+            % carries no negative information — keep the discounted prior.
             q_tilde     = (1 / (1 + self.delta)) * q_bar(:, j);
             Omega_tilde = (1 / (1 + self.delta)) * Omega_bar(:, :, j);
 
