@@ -9,7 +9,9 @@
 % The graph is constructed as undirected to make it easier to get strong
 % connectivity and then it's converted to a digraph.
 %
-% All self loops are removed.
+% A self-loop is added to every node (see the adjacency-diagonal assignment
+% below): the distributed filters inject each node's own local information
+% through this self-loop during fusion, so it must be present.
 %
 % Parameters:
 % - N - Total number of Nodes (Sensors + Extenders)
