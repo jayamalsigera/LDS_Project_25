@@ -41,7 +41,12 @@ lfm   = LeastFavorableModel(plant, P0, lfmKlTolerance, T);
 disp("Pre-generating least-favorable Monte Carlo trajectories")
 samples = cell(totalTuneRuns, 1);
 for run = 1:totalTuneRuns
-  samples{run} = lfm.simulate(x0);
+  % Keep only the (X, Y) trajectories. lfm.simulate returns the whole
+  % LeastFavorableModel object, whose per-step sweep arrays (notably L, an
+  % m-by-m-by-(T+1) factor ~ hundreds of MB) would otherwise be stored 50x and
+  % broadcast to every parfor worker -- blowing past node memory.
+  s = lfm.simulate(x0);
+  samples{run} = struct('X', s.X, 'Y', s.Y);
 end
 
 %% Sweep
