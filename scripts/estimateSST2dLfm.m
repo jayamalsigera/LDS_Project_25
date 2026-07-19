@@ -49,8 +49,8 @@ crkf       = CRKF(plant, Ts, T, klTolerance);
 dseacp     = DSEACP(plant, Ts, T, netGraph, consensusSteps);
 dkf        = DKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta);
 rdkf       = RDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, klTolerance);
-sdkfClosed = SDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, errorNormWeightsClosed, 'closed');
-sdkfOpen   = SDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, errorNormWeightsOpen,   'open');
+sdkfClosed = SDKF(plant, Ts, T, netGraph, dkfDelta, errorNormWeightsClosed, 'closed');
+sdkfOpen   = SDKF(plant, Ts, T, netGraph, dkfDelta, errorNormWeightsOpen,   'open');
 srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                     klTolerance, errorNormWeightsClosed, 'closed');
 srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
