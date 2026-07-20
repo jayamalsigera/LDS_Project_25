@@ -46,6 +46,24 @@ srdkfClosed = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                     klTolerance, errorNormWeightsClosed, 'closed');
 srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                   klTolerance, errorNormWeightsOpen, 'open');
+
+% Local-tolerance robust filters (Algorithm 2). Each constructor computes its
+% per-node b^i from the global model of radius klTolerance; this runs serially,
+% once. On nominal data these should track their b=0 counterparts (robustness
+% earns nothing without model mismatch); the payoff shows on LFM data.
+rdkfloc        = RDKFLOC(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                         klTolerance, P0);
+srdkflocClosed = SRDKFLOC(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                          klTolerance, errorNormWeightsClosed, 'closed', P0);
+srdkflocOpen   = SRDKFLOC(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
+                          klTolerance, errorNormWeightsOpen, 'open', P0);
+
+bLocal = rdkfloc.b;                        % per-node b^i (same for all LOC filters)
+bSens  = bLocal(netGraph.Nodes.isSensor);
+fprintf(['Local tolerances b^i (%d sensor nodes): ' ...
+         'min=%.3g  median=%.3g  max=%.3g   (global b=%.3g)\n'], ...
+        numel(bSens), min(bSens), median(bSens), max(bSens), klTolerance);
+
 %% Monte Carlo simulations
 disp("Running Monte Carlo simulations")
 
@@ -59,6 +77,9 @@ sdkfClosedRmse = zeros(totalRuns, T + 1);
 sdkfOpenRmse   = zeros(totalRuns, T + 1);
 srdkfClosedRmse = zeros(totalRuns, T + 1);
 srdkfOpenRmse   = zeros(totalRuns, T + 1);
+rdkflocRmse        = zeros(totalRuns, T + 1);
+srdkflocClosedRmse = zeros(totalRuns, T + 1);
+srdkflocOpenRmse   = zeros(totalRuns, T + 1);
 
 dkfTxRate        = zeros(totalRuns, T + 1);
 rdkfTxRate       = zeros(totalRuns, T + 1);
@@ -66,6 +87,9 @@ sdkfClosedTxRate = zeros(totalRuns, T + 1);
 sdkfOpenTxRate   = zeros(totalRuns, T + 1);
 srdkfClosedTxRate = zeros(totalRuns, T + 1);
 srdkfOpenTxRate   = zeros(totalRuns, T + 1);
+rdkflocTxRate        = zeros(totalRuns, T + 1);
+srdkflocClosedTxRate = zeros(totalRuns, T + 1);
+srdkflocOpenTxRate   = zeros(totalRuns, T + 1);
 
 tic
 
@@ -80,6 +104,9 @@ sdkfClosedSample = sdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 sdkfOpenSample   = sdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 srdkfClosedSample = srdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 srdkfOpenSample   = srdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+rdkflocSample        = rdkfloc.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+srdkflocClosedSample = srdkflocClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
+srdkflocOpenSample   = srdkflocOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 
 ckfRmse(1, :)        = ckfSample.RMSE;
 crkfRmse(1, :)       = crkfSample.RMSE;
@@ -96,6 +123,12 @@ srdkfClosedRmse(1, :) = srdkfClosedSample.RMSE;
 srdkfClosedTxRate(1, :) = srdkfClosedSample.txRate;
 srdkfOpenRmse(1, :)   = srdkfOpenSample.RMSE;
 srdkfOpenTxRate(1, :) = srdkfOpenSample.txRate;
+rdkflocRmse(1, :)      = rdkflocSample.RMSE;
+rdkflocTxRate(1, :)    = rdkflocSample.txRate;
+srdkflocClosedRmse(1, :)   = srdkflocClosedSample.RMSE;
+srdkflocClosedTxRate(1, :) = srdkflocClosedSample.txRate;
+srdkflocOpenRmse(1, :)   = srdkflocOpenSample.RMSE;
+srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
 
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
@@ -128,6 +161,18 @@ parfor run = 2:totalRuns
   srdkfOpenRun = srdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkfOpenRmse(run, :)   = srdkfOpenRun.RMSE;
   srdkfOpenTxRate(run, :) = srdkfOpenRun.txRate;
+
+  rdkflocRun = rdkfloc.estimate(x0_hat, P0, s.X, s.Y);
+  rdkflocRmse(run, :)   = rdkflocRun.RMSE;
+  rdkflocTxRate(run, :) = rdkflocRun.txRate;
+
+  srdkflocClosedRun = srdkflocClosed.estimate(x0_hat, P0, s.X, s.Y);
+  srdkflocClosedRmse(run, :)   = srdkflocClosedRun.RMSE;
+  srdkflocClosedTxRate(run, :) = srdkflocClosedRun.txRate;
+
+  srdkflocOpenRun = srdkflocOpen.estimate(x0_hat, P0, s.X, s.Y);
+  srdkflocOpenRmse(run, :)   = srdkflocOpenRun.RMSE;
+  srdkflocOpenTxRate(run, :) = srdkflocOpenRun.txRate;
 end
 fprintf('Elapsed: %.3f s\n', toc);
 
@@ -137,16 +182,22 @@ results = struct( ...
   'dkfRmse', dkfRmse, 'rdkfRmse', rdkfRmse, ...
   'sdkfClosedRmse', sdkfClosedRmse, 'sdkfOpenRmse', sdkfOpenRmse, ...
   'srdkfClosedRmse', srdkfClosedRmse, 'srdkfOpenRmse', srdkfOpenRmse, ...
+  'rdkflocRmse', rdkflocRmse, ...
+  'srdkflocClosedRmse', srdkflocClosedRmse, 'srdkflocOpenRmse', srdkflocOpenRmse, ...
   'dkfTxRate', dkfTxRate, 'rdkfTxRate', rdkfTxRate, ...
   'sdkfClosedTxRate', sdkfClosedTxRate, 'sdkfOpenTxRate', sdkfOpenTxRate, ...
-  'srdkfClosedTxRate', srdkfClosedTxRate, 'srdkfOpenTxRate', srdkfOpenTxRate);
+  'srdkfClosedTxRate', srdkfClosedTxRate, 'srdkfOpenTxRate', srdkfOpenTxRate, ...
+  'rdkflocTxRate', rdkflocTxRate, ...
+  'srdkflocClosedTxRate', srdkflocClosedTxRate, 'srdkflocOpenTxRate', srdkflocOpenTxRate);
 samples = struct( ...
   'mdlSample', mdlSample, ...
   'ckfSample', ckfSample, 'crkfSample', crkfSample, 'dseacpSample', dseacpSample, ...
   'dkfSample', dkfSample, 'rdkfSample', rdkfSample, ...
   'sdkfClosedSample', sdkfClosedSample, 'sdkfOpenSample', sdkfOpenSample, ...
-  'srdkfClosedSample', srdkfClosedSample, 'srdkfOpenSample', srdkfOpenSample);
-extras = struct('totalRuns', totalRuns);
+  'srdkfClosedSample', srdkfClosedSample, 'srdkfOpenSample', srdkfOpenSample, ...
+  'rdkflocSample', rdkflocSample, ...
+  'srdkflocClosedSample', srdkflocClosedSample, 'srdkflocOpenSample', srdkflocOpenSample);
+extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
 savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
 
 %% Plotting

@@ -32,8 +32,10 @@ function plotSST2dRun(path)
   c_dseacp = [0.85 0.33 0.10];   % MATLAB default orange-red
   c_dkf    = [0.93 0.69 0.13];   % MATLAB default amber
   c_rdkf   = [0.49 0.18 0.56];   % MATLAB default purple
+  c_rdkfloc = [0.29 0.00 0.51];  % indigo (RDKFLOC — local-tolerance RDKF)
   c_sdkf   = [0.10 0.75 0.65];   % teal  (SDKF family)
   c_srdkf  = [0.47 0.67 0.19];   % green (SRDKF family)
+  c_srdkfloc = [0.15 0.40 0.10]; % dark green (SRDKFLOC — local-tolerance SRDKF)
 
   lw = 1.3;   % base line width
 
@@ -49,6 +51,9 @@ function plotSST2dRun(path)
   spec('SDKF-Closed')  = mkspec('sdkfClosed',  c_sdkf,   '--', lw);
   spec('SRDKF-Open')   = mkspec('srdkfOpen',   c_srdkf,  ':',  lw + 0.4);
   spec('SRDKF-Closed') = mkspec('srdkfClosed', c_srdkf,  '--', lw);
+  spec('RDKFLOC')       = mkspec('rdkfloc',       c_rdkfloc,  '-',  lw);
+  spec('SRDKFLOC-Open')   = mkspec('srdkflocOpen',   c_srdkfloc, ':',  lw + 0.4);
+  spec('SRDKFLOC-Closed') = mkspec('srdkflocClosed', c_srdkfloc, '--', lw);
 
   % Comparison groups: {name, members}.
   groups = {
@@ -58,6 +63,19 @@ function plotSST2dRun(path)
     'DKF vs SDKF-Open vs SRDKF-Open', {'DKF', 'SDKF-Open', 'SRDKF-Open'};
     'DKF vs SDKF-Closed vs SRDKF-Closed', {'DKF', 'SDKF-Closed', 'SRDKF-Closed'};
   };
+
+  % Local-tolerance (Algorithm 2) comparisons: uniform-b robust vs per-node b^i,
+  % against the b=0 (DKF) and centralized (CRKF) references. Appended only when
+  % the run actually contains the LOC filters, so nominal/older runs are
+  % unaffected.
+  if isfield(results, 'rdkflocRmse')
+    groups = [groups; {
+      'DKF vs RDKF vs RDKFLOC',                  {'DKF', 'RDKF', 'RDKFLOC'};
+      'DKF vs SRDKF-Open vs SRDKFLOC-Open',      {'DKF', 'SRDKF-Open', 'SRDKFLOC-Open'};
+      'DKF vs SRDKF-Closed vs SRDKFLOC-Closed',  {'DKF', 'SRDKF-Closed', 'SRDKFLOC-Closed'};
+      'CRKF vs RDKFLOC vs SRDKFLOC-Open',        {'CRKF', 'RDKFLOC', 'SRDKFLOC-Open'};
+    }];
+  end
 
   t = (0:T) * Ts;
 
