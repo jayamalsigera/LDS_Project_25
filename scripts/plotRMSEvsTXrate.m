@@ -1,11 +1,13 @@
-function plotSST2dRun(path)
-%PLOTSST2DRUN  Re-create RMSE / TX-rate figures for a saved estimateSST2d[Lfm] run.
+function plotRMSEvsTXrate(path)
+%PLOTRMSEVSTXRATE  Re-create RMSE / TX-rate figures for a saved estimateSST run.
 %
-% Works for both the nominal-plant script (estimateSST2d) and the
-% least-favorable model script (estimateSST2dLfm); the LFM branch is
-% taken when runData.samples has a nomSample field.
+% Dimension-agnostic: works for the 2D and 3D nominal-plant scripts
+% (estimateSST2d / estimateSST3d) and their least-favorable model counterparts
+% (estimateSST2dLfm / estimateSST3dLfm); the LFM branch is taken when
+% runData.samples has a nomSample field.
 %
-% Trajectory figures live in plotSST2dTrajectories.
+% Trajectory figures (which depend on the state layout) live in
+% plotSST2dTrajectories / plotSST3dTrajectories.
 
   runData = loadRun(path);
 

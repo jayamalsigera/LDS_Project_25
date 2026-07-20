@@ -35,6 +35,7 @@ classdef SRDKF
     Q
     R
     n
+    senBlock
     % Stats
     RMSE
     txRate
@@ -63,6 +64,12 @@ classdef SRDKF
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
+
+      % Measurement rows per sensor (p_i): 2 in 2D, 3 in 3D. See RDKF.
+      assert(mod(plant.p, self.S) == 0, ...
+        'SRDKF:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
+        plant.p, self.S);
+      self.senBlock = plant.p / self.S;
 
       % b may be a scalar (uniform tolerance) or an N-vector (per-node local
       % tolerances b^i, for SRDKFLOC). Store as an N-vector so the prediction
@@ -123,7 +130,7 @@ classdef SRDKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
-          idx = (2 * i - 1):(2 * i);
+          idx = self.senBlock * (i - 1) + (1:self.senBlock);
 
           y_i = y(idx);
           C_i = self.C(idx, :);
@@ -155,7 +162,7 @@ classdef SRDKF
           continue
         end
 
-        idx = (2 * i - 1):(2 * i);
+        idx = self.senBlock * (i - 1) + (1:self.senBlock);
         y_i = y(idx);
 
         switch lower(self.triggerMode)
@@ -196,7 +203,7 @@ classdef SRDKF
             % Silence => innovation was sub-threshold => mean stays at the
             % prior x_bar_j while the information still tightens by
             % C_j' inv(R_j + inv(Z)) C_j.
-            jdx  = (2 * j - 1):(2 * j);
+            jdx  = self.senBlock * (j - 1) + (1:self.senBlock);
             C_j  = self.C(jdx, :);
             R_j  = self.R(jdx, jdx);
             Reff = R_j + Zinv;

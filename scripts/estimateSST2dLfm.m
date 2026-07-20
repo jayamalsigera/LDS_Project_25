@@ -214,5 +214,5 @@ savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, sampl
 plottingEnabled = true;
 if plottingEnabled
   disp("Plotting results.")
-  plotSST2dRun(savedPath);
+  plotRMSEvsTXrate(savedPath);
 end

@@ -1,5 +1,9 @@
-
-%% Simulations of the 2D Single-Target Tracking Plant
+%% Simulations of the 3D Single-Target Tracking Plant under the Least-Favorable Model
+%
+% Mirrors estimateSST3d.m, except the per-run trajectories (X, Y) are drawn from
+% the least-favorable model (Levy & Nikoukhah 2013, Section V) at tolerance b,
+% rather than from the nominal plant. This is the setup used by Ghion & Zorzi
+% (2023) in their Monte Carlo study.
 
 clear;
 close all;
@@ -8,7 +12,7 @@ rng(42);
 
 
 %% Parameters
-sst2dParams;
+sst3dParams;
 
 %% Network Definition
 disp("Creating Network")
@@ -18,21 +22,27 @@ assertConnected(netGraph);
 
 %% Model Simulation
 disp("Simulating target dynamics")
-plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
+plant = SingleTarget3dModel(Ts, sensorCount, noiseScale, T);
 
 assertStabilizable(plant.A, plant.B);
 assertDetectable(plant.A, plant.C);
 
 %% System checks (stabilizability, detectability, local observability)
 disp("Checking local observability of sensor nodes")
+senBlock = plant.p / sensorCount;   % measurement rows per sensor (= 3 in 3D)
 for i = 1:sensorCount
-  idx = (2 * i - 1):(2 * i);
+  idx = senBlock * (i - 1) + (1:senBlock);
   assertLocallyObservable(plant.A, plant.C(idx, :), i);
 end
 plotSystemChecks(plant.A, plant.B, plant.C, sensorCount, netGraph);
 
 %% Estimators
 disp("Initializing estimators")
+
+% Least-favorable data generator. Forward/backward sweeps (G_t, H_t, L_t) are
+% computed once here; only the per-run randn draws happen inside the parfor.
+disp("Precomputing least-favorable model")
+lfm = LeastFavorableModel(plant, P0, lfmKlTolerance, T);
 
 % Initiate all filters
 ckf        = CKF(plant, Ts, T);
@@ -49,8 +59,7 @@ srdkfOpen = SRDKF(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
 
 % Local-tolerance robust filters (Algorithm 2). Each constructor computes its
 % per-node b^i from the global model of radius klTolerance; this runs serially,
-% once. On nominal data these should track their b=0 counterparts (robustness
-% earns nothing without model mismatch); the payoff shows on LFM data.
+% once. b^i is inspectable afterwards via the inherited .b property.
 rdkfloc        = RDKFLOC(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
                          klTolerance, P0);
 srdkflocClosed = SRDKFLOC(plant, Ts, T, netGraph, dkfAlpha, dkfBeta, dkfDelta, ...
@@ -65,7 +74,7 @@ fprintf(['Local tolerances b^i (%d sensor nodes): ' ...
         numel(bSens), min(bSens), median(bSens), max(bSens), klTolerance);
 
 %% Monte Carlo simulations
-disp("Running Monte Carlo simulations")
+disp("Running Monte Carlo simulations (LFM data)")
 
 % Preallocate RMSE and Transmission rate logs
 ckfRmse        = zeros(totalRuns, T + 1);
@@ -93,8 +102,10 @@ srdkflocOpenTxRate   = zeros(totalRuns, T + 1);
 
 tic
 
-% Showcase run (serial) - keeps sample objects available for trajectory plots
-mdlSample        = plant.simulate(x0);
+% Showcase run (serial) - keeps sample objects available for trajectory plots.
+% Also draw a nominal-model sample for side-by-side visual comparison.
+mdlSample        = lfm.simulate(x0);
+nomSample        = plant.simulate(x0);
 ckfSample        = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 crkfSample       = crkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dseacpSample     = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
@@ -115,11 +126,11 @@ dkfRmse(1, :)        = dkfSample.RMSE;
 dkfTxRate(1, :)      = dkfSample.txRate;
 rdkfRmse(1, :)       = rdkfSample.RMSE;
 rdkfTxRate(1, :)     = rdkfSample.txRate;
-sdkfClosedRmse(1, :) = sdkfClosedSample.RMSE;
+sdkfClosedRmse(1, :)   = sdkfClosedSample.RMSE;
 sdkfClosedTxRate(1, :) = sdkfClosedSample.txRate;
 sdkfOpenRmse(1, :)   = sdkfOpenSample.RMSE;
 sdkfOpenTxRate(1, :) = sdkfOpenSample.txRate;
-srdkfClosedRmse(1, :) = srdkfClosedSample.RMSE;
+srdkfClosedRmse(1, :)   = srdkfClosedSample.RMSE;
 srdkfClosedTxRate(1, :) = srdkfClosedSample.txRate;
 srdkfOpenRmse(1, :)   = srdkfOpenSample.RMSE;
 srdkfOpenTxRate(1, :) = srdkfOpenSample.txRate;
@@ -132,7 +143,7 @@ srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
 
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
-  s = plant.simulate(x0);
+  s = lfm.simulate(x0);
 
   ckfRmse(run, :)    = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
   crkfRmse(run, :)   = crkf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
@@ -190,7 +201,7 @@ results = struct( ...
   'rdkflocTxRate', rdkflocTxRate, ...
   'srdkflocClosedTxRate', srdkflocClosedTxRate, 'srdkflocOpenTxRate', srdkflocOpenTxRate);
 samples = struct( ...
-  'mdlSample', mdlSample, ...
+  'mdlSample', mdlSample, 'nomSample', nomSample, ...
   'ckfSample', ckfSample, 'crkfSample', crkfSample, 'dseacpSample', dseacpSample, ...
   'dkfSample', dkfSample, 'rdkfSample', rdkfSample, ...
   'sdkfClosedSample', sdkfClosedSample, 'sdkfOpenSample', sdkfOpenSample, ...
@@ -198,10 +209,10 @@ samples = struct( ...
   'rdkflocSample', rdkflocSample, ...
   'srdkflocClosedSample', srdkflocClosedSample, 'srdkflocOpenSample', srdkflocOpenSample);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
-savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
+savedPath = saveRun(mfilename, collectParams('sst3dParams'), extras, netGraph, results, samples);
 
 %% Plotting
-plottingEnabled = true;
+plottingEnabled = false;  % enable for interactive runs; off for headless/batch
 if plottingEnabled
   disp("Plotting results.")
   plotRMSEvsTXrate(savedPath);

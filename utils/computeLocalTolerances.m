@@ -23,10 +23,10 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
 %   here at a converged interior index t* (the recursions are stationary in the
 %   interior, so a single steady-state slice suffices).
 %
-%   Slicing convention matches the estimators (RDKF.m:104-107): sensor node i
-%   occupies measurement rows (2i-1):(2i) of plant.C, so its slice keeps state
-%   rows 1:n and measurement rows n+(2i-1):n+2i. Relay (non-sensor) nodes have
-%   no measurement and get the state-only (n) slice (p_i = 0).
+%   Slicing convention matches the estimators (senBlock): sensor node i occupies
+%   a senBlock-row measurement block of plant.C (2 rows in 2D, 3 in 3D), so its
+%   slice keeps state rows 1:n and that block. Relay (non-sensor) nodes have no
+%   measurement and get the state-only (n) slice (p_i = 0).
 %
 %   Inputs
 %     plant    : SingleTarget2dModel (provides A, C, B, D, n, p, m, T).
@@ -44,6 +44,14 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
   T = plant.T;
   N = numnodes(netGraph);
   isSensor = netGraph.Nodes.isSensor;
+
+  % Measurement rows per sensor (p_i): 2 in the 2D model, 3 in the 3D model.
+  % Derived from the stacked C so the same code serves both; matches the
+  % estimators' senBlock (sensors are the first S nodes, node i owns block i).
+  S = sum(isSensor);
+  assert(mod(plant.p, S) == 0, 'computeLocalTolerances:senBlock', ...
+    'plant.p (%d) is not divisible by sensor count (%d).', plant.p, S);
+  senBlock = plant.p / S;
 
   % Global least-favorable model: precompute() fills V, H, L for t = 0..T.
   lfm = LeastFavorableModel(plant, P0, bGlobal, T);
@@ -85,8 +93,8 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
   bLocal = zeros(N, 1);
   for i = 1:N
     if isSensor(i)
-      pI  = 2;                                   % 2-row measurement block per node
-      idx = [1:n, n + (2 * i - 1), n + 2 * i];   % state rows + node i's own rows
+      pI  = senBlock;                            % measurement rows for node i
+      idx = [1:n, n + senBlock * (i - 1) + (1:senBlock)];  % state + node i's rows
     else
       pI  = 0;                                   % relay: state-only slice
       idx = 1:n;

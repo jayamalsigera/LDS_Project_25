@@ -23,6 +23,7 @@ classdef DKF
     Q
     R
     n
+    senBlock
     % Stats
     RMSE
     txRate
@@ -49,6 +50,12 @@ classdef DKF
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
+
+      % Measurement rows per sensor (p_i): 2 in 2D, 3 in 3D. See RDKF.
+      assert(mod(plant.p, self.S) == 0, ...
+        'DKF:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
+        plant.p, self.S);
+      self.senBlock = plant.p / self.S;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
@@ -99,9 +106,9 @@ classdef DKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
-          % Assumes C, R, and y are laid out with a 2-row block per node index
-          % (p_i = 2); non-sensor nodes still occupy their block as placeholders.
-          idx = (2 * i - 1):(2 * i);
+          % C, R, and y are laid out with a senBlock-row block per node index
+          % (p_i = senBlock); non-sensor nodes still occupy their block as placeholders.
+          idx = self.senBlock * (i - 1) + (1:self.senBlock);
 
           y_i = y(idx);
           C_i = self.C(idx, :);
