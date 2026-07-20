@@ -7,7 +7,7 @@
 % sourcing this file.
 
 %% Plant
-T = 1000;                 % Number of simulation steps (paper uses 250; knob)
+T = 250;                  % Number of simulation steps (paper uses 250; knob)
 Ts = 0.1;                 % Sampling period
 noiseScale = 1;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
 x0 = [25 25 25 1000 1000 1000]';  % Initial true state: [vx vy vz px py pz]
@@ -25,9 +25,9 @@ maxLength = 5000;         % Spatial extent for random network generation
 consensusSteps = 3;       % DSEACP consensus iterations (L)
 
 % Event-trigger parameters for DKF/RDKF/SRDKF
-dkfAlpha = 1;
+dkfAlpha = 10;
 dkfBeta = 0.2;
-dkfDelta = 0.1;
+dkfDelta = 0.5;
 
 % KL-divergence tolerance for robust filters (b); LFM data is generated at the
 % same radius so the filter defends exactly the mismatch present in the data
