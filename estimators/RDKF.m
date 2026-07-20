@@ -24,6 +24,7 @@ classdef RDKF
     Q
     R
     n
+    senBlock
     % Stats
     RMSE
     txRate
@@ -50,6 +51,14 @@ classdef RDKF
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
+
+      % Measurement rows per sensor (p_i). Homogeneous across sensors: 2 in the
+      % 2D model, 3 in the 3D model. Derived from the stacked C so the same code
+      % serves both; sensors are the first S nodes, so node i owns block i.
+      assert(mod(plant.p, self.S) == 0, ...
+        'RDKF:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
+        plant.p, self.S);
+      self.senBlock = plant.p / self.S;
 
       % b may be a scalar (uniform tolerance, Algorithm 1) or an N-vector
       % (per-node local tolerances b^i, Algorithm 2 / RDKFLOC). Store it as an
@@ -108,9 +117,9 @@ classdef RDKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
-          % Assumes C, R, and y are laid out with a 2-row block per node index
-          % (p_i = 2); non-sensor nodes still occupy their block as placeholders.
-          idx = (2 * i - 1):(2 * i);
+          % C, R, and y are laid out with a senBlock-row block per node index
+          % (p_i = senBlock); non-sensor nodes still occupy their block as placeholders.
+          idx = self.senBlock * (i - 1) + (1:self.senBlock);
 
           y_i = y(idx);
           C_i = self.C(idx, :);

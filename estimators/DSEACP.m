@@ -20,6 +20,7 @@ classdef DSEACP
     Q
     R
     n
+    senBlock
     % Stats
     RMSE
   end
@@ -42,6 +43,12 @@ classdef DSEACP
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
+
+      % Measurement rows per sensor (p_i): 2 in 2D, 3 in 3D. See RDKF.
+      assert(mod(plant.p, self.S) == 0, ...
+        'DSEACP:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
+        plant.p, self.S);
+      self.senBlock = plant.p / self.S;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
     end
@@ -78,7 +85,7 @@ classdef DSEACP
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
-          idx = (2 * i - 1):(2 * i);
+          idx = self.senBlock * (i - 1) + (1:self.senBlock);
 
           y_i = y(idx);
           C_i = self.C(idx, :);

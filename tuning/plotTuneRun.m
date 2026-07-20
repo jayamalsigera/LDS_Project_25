@@ -212,7 +212,7 @@ function gridHeatmap(ax, M, colAx, rowAx, ttl)
 end
 
 function col = familyColor(filterName, fallbackIdx)
-% Repo family colours (see plotSST2dRun); fallback palette otherwise.
+% Repo family colours (see plotRMSEvsTXrate); fallback palette otherwise.
   switch filterName
     case 'DKF'
       col = [0.93 0.69 0.13];   % amber

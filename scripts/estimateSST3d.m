@@ -1,5 +1,5 @@
 
-%% Simulations of the 2D Single-Target Tracking Plant
+%% Simulations of the 3D Single-Target Tracking Plant
 
 clear;
 close all;
@@ -8,7 +8,7 @@ rng(42);
 
 
 %% Parameters
-sst2dParams;
+sst3dParams;
 
 %% Network Definition
 disp("Creating Network")
@@ -18,15 +18,16 @@ assertConnected(netGraph);
 
 %% Model Simulation
 disp("Simulating target dynamics")
-plant = SingleTarget2dModel(Ts, sensorCount, outputNoiseStd, T, turnRate);
+plant = SingleTarget3dModel(Ts, sensorCount, noiseScale, T);
 
 assertStabilizable(plant.A, plant.B);
 assertDetectable(plant.A, plant.C);
 
 %% System checks (stabilizability, detectability, local observability)
 disp("Checking local observability of sensor nodes")
+senBlock = plant.p / sensorCount;   % measurement rows per sensor (= 3 in 3D)
 for i = 1:sensorCount
-  idx = (2 * i - 1):(2 * i);
+  idx = senBlock * (i - 1) + (1:senBlock);
   assertLocallyObservable(plant.A, plant.C(idx, :), i);
 end
 plotSystemChecks(plant.A, plant.B, plant.C, sensorCount, netGraph);
@@ -198,10 +199,10 @@ samples = struct( ...
   'rdkflocSample', rdkflocSample, ...
   'srdkflocClosedSample', srdkflocClosedSample, 'srdkflocOpenSample', srdkflocOpenSample);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
-savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
+savedPath = saveRun(mfilename, collectParams('sst3dParams'), extras, netGraph, results, samples);
 
 %% Plotting
-plottingEnabled = true;
+plottingEnabled = false;  % enable for interactive runs; off for headless/batch
 if plottingEnabled
   disp("Plotting results.")
   plotRMSEvsTXrate(savedPath);
