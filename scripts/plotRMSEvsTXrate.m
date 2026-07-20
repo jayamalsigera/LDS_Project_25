@@ -141,6 +141,7 @@ function drawMetric(t, results, spec, members, suffix, groupName, isLfm)
 
   if isRmse
     metricName = 'RMSE'; ylab = 'RMSE';
+    set(gca, 'YScale', 'log');
   else
     metricName = 'TX Rate'; ylab = 'TX Rate';
   end
