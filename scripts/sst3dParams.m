@@ -8,7 +8,7 @@
 
 %% Plant
 dim = 3;                  % Spatial dimension (drives plant ctor + measurement dim m in sstPlant)
-T = 250;                  % Number of simulation steps (paper uses 250; knob)
+T = 1000;                 % Number of simulation steps (paper uses 250; knob)
 Ts = 0.1;                 % Sampling period
 noiseScale = 1;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
 x0 = [25 25 25 1000 1000 1000]';  % Initial true state: [vx vy vz px py pz]
