@@ -1,11 +1,12 @@
 %% Shared parameters for 2D Single-Target Tracking scripts
 %
-% Loaded by estimateSST2d.m, estimateSST2dLfm.m, tuneDKF.m, and tuneRDKF.m
-% so they agree on plant, network, and estimator settings. Scripts that need
-% script-specific overrides (e.g. totalRuns, hyperparameter grids) set them
-% after sourcing this file.
+% Loaded by estimateSST2d.m / estimateSST2dLfm.m (directly) and by the tune*
+% functions via collectParams('sst2dParams'), so they agree on plant, network,
+% and estimator settings. Scripts that need script-specific overrides (e.g.
+% totalRuns) set them after sourcing this file.
 
 %% Plant
+dim = 2;                  % Spatial dimension (drives plant ctor + measurement dim m in sstPlant)
 T = 1000;                 % Number of simulation steps
 Ts = 0.1;                 % Sampling period
 outputNoiseStd = 10;
@@ -54,3 +55,29 @@ totalRuns = 200;
 % totalRuns = 2;
 
 totalTuneRuns = 50;
+
+%% Tuning grids (consumed by the tune* functions; see tuning/)
+% Grids are filter-specific: DKF and RDKF explore different (beta, delta)
+% ranges, and the SDKF and SRDKF stochastic triggers live on very different z
+% scales, so each gets its own grid rather than one shared sweep.
+
+% DKF event-trigger grid (beta x delta; alpha fixed). See tuneDKF.
+tuneDkfBetaGrid   = [0.1, 0.2, 0.5, 0.9];
+tuneDkfDeltaGrid  = [0.01, 0.05, 0.1, 0.5, 1.0];
+tuneDkfAlphaFixed = 1;
+
+% RDKF event-trigger grid (beta x delta; alpha and robust tol b fixed). See tuneRDKF.
+tuneRdkfBetaGrid   = [0.1, 0.5, 1, 2.5];
+tuneRdkfDeltaGrid  = [0.1, 0.5, 1, 2.5];
+tuneRdkfAlphaFixed = 1;
+tuneRdkfBFixed     = 0.05;
+
+% Stochastic-trigger weight scale z (Z = z * eye(m)). SDKF and SRDKF differ by
+% orders of magnitude. See tuneSDKFClosed / tuneSRDKFClosed / tuneSRDKFOpen.
+tuneSdkfZGrid  = [1e-5, 2e-5, 3e-5, 4e-5, 4.5e-5, 5e-5, 6e-5, 7e-5, 1e-4];
+tuneSrdkfZGrid = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
+
+% Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
+% functions). b = 0 is the anchor (robust layer disabled); log grid through and
+% just past the shipped 0.05.
+tuneBGrid = [0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 5e-2, 1e-1];

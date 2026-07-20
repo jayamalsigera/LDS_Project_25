@@ -43,11 +43,17 @@ Script-specific settings (e.g. `totalRuns`, hyperparameter grids) stay inside ea
 From the MATLAB Command Window (any of):
 
 ```matlab
-estimateSST2d        % nominal-plant Monte Carlo
+estimateSST2d        % nominal-plant Monte Carlo (2D; estimateSST3d for 3D)
 estimateSST2dLfm     % least-favorable-model Monte Carlo
-tuneDKF              % DKF event-trigger sweep
-tuneRDKF             % RDKF event-trigger + KL-tolerance sweep
+tuneDKF('sst2d')     % DKF event-trigger sweep   (pass 'sst3d' for 3D)
+tuneRDKF('sst2d')    % RDKF event-trigger sweep  (pass 'sst3d' for 3D)
 ```
+
+The `tune*` functions take a required scenario argument (`'sst2d'` or
+`'sst3d'`) that selects the params file and plant dimension; the swept grids
+live in `sst2dParams.m` / `sst3dParams.m`. Other sweeps: `tuneSDKFClosed`,
+`tuneSRDKFClosed`, `tuneSRDKFOpen`, and the robust-tolerance-on-LFM variants
+`tuneRDKFbLfm`, `tuneSRDKFClosedbLfm`, `tuneSRDKFOpenbLfm`.
 
 Each script:
 
