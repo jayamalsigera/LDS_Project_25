@@ -51,6 +51,12 @@ classdef RDKF
 
       self.n = plant.n;
 
+      % b may be a scalar (uniform tolerance, Algorithm 1) or an N-vector
+      % (per-node local tolerances b^i, Algorithm 2 / RDKFLOC). Store it as an
+      % N-vector so the prediction steps can index self.b(i) uniformly; a
+      % scalar broadcasts to a constant vector, leaving scalar callers
+      % unchanged (and b = 0 still recovers DKF per node).
+      if isscalar(b), b = repmat(b, self.N, 1); end
       self.b = b;
 
       self.X_hat = zeros(self.n, self.N, T + 1);
@@ -184,7 +190,7 @@ classdef RDKF
         Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
 
         % Risk Sensitivity Parameter
-        theta = findTheta(Omega_pred(:, :, i), self.b);
+        theta = findTheta(Omega_pred(:, :, i), self.b(i));
 
         % Robust information Pair
         Psi(:, :, i) = Omega_pred(:, :, i) - theta * eye(self.n);
@@ -209,7 +215,7 @@ classdef RDKF
         Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
 
         % Risk Sensitivity Parameter
-        theta_bar = findTheta(Omega_bar_next(:, :, i), self.b);
+        theta_bar = findTheta(Omega_bar_next(:, :, i), self.b(i));
 
         % Robust information pair
         Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n);

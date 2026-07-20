@@ -64,6 +64,11 @@ classdef SRDKF
 
       self.n = plant.n;
 
+      % b may be a scalar (uniform tolerance) or an N-vector (per-node local
+      % tolerances b^i, for SRDKFLOC). Store as an N-vector so the prediction
+      % steps can index self.b(i); a scalar broadcasts to a constant vector,
+      % leaving scalar callers unchanged (b = 0 still recovers SDKF per node).
+      if isscalar(b), b = repmat(b, self.N, 1); end
       self.b = b;
       self.Z = Z;
 
@@ -226,7 +231,7 @@ classdef SRDKF
         Omega_i_F = Omega_fused(:, :, i);
 
         [q_i_pred, Psi_i_pred, ~, ~] = predictRobustFusion( ...
-          q_i_F, Omega_i_F, self.A, self.Q, self.b);
+          q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
 
         q_pred(:, i) = q_i_pred;
         Psi(:, :, i) = Psi_i_pred;
@@ -248,7 +253,7 @@ classdef SRDKF
         end
 
         [q_i_bar, Psi_i_bar, ~, ~] = predictNoTransmit( ...
-          q_i_check, Omega_i_check, self.A, self.Q, self.b);
+          q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
 
         q_bar_next(:, i) = q_i_bar;
         Psi_bar_next(:, :, i) = Psi_i_bar;

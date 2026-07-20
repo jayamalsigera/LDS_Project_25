@@ -30,9 +30,11 @@ function plotSST2dTrajectories(path)
 
   % Estimated trajectories per filter
   estLabels = {'CKF', 'CRKF', 'DSEA-CP', 'DKF', 'RDKF', ...
-               'SDKF-Closed', 'SDKF-Open', 'SRDKF-Closed', 'SRDKF-Open'};
+               'SDKF-Closed', 'SDKF-Open', 'SRDKF-Closed', 'SRDKF-Open', ...
+               'RDKFLOC', 'SRDKFLOC-Closed', 'SRDKFLOC-Open'};
   estFields = {'ckfSample', 'crkfSample', 'dseacpSample', 'dkfSample', 'rdkfSample', ...
-               'sdkfClosedSample', 'sdkfOpenSample', 'srdkfClosedSample', 'srdkfOpenSample'};
+               'sdkfClosedSample', 'sdkfOpenSample', 'srdkfClosedSample', 'srdkfOpenSample', ...
+               'rdkflocSample', 'srdkflocClosedSample', 'srdkflocOpenSample'};
   for k = 1:numel(estFields)
     if ~isfield(samples, estFields{k}); continue; end
     est = samples.(estFields{k});
