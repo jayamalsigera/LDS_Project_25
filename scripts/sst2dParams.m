@@ -32,9 +32,11 @@ dkfAlpha = 1;
 dkfBeta = 0.2;
 dkfDelta = 0.1;
 
-% KL-divergence tolerance for robust filters (b); LFM uses the same b.
+% KL-divergence tolerance for robust filters (b); LFM data is generated at the
+% same radius so the filter defends exactly the mismatch present in the data
+% (matches Ghion & Zorzi 2023, Section 6, which uses b = 0.05 for both).
 klTolerance = 0.05;
-lfmKlTolerance = 0.01;
+lfmKlTolerance = 0.05;
 
 % Stochastic trigger error-norm weight matrices (both in measurement space,
 % Z in S^m_{++} per Han et al. 2015 — m=2 for this 2D sensor model)
