@@ -6,7 +6,7 @@ function tuneSRDKFOpen(scenario)
 % Sweeps the error-norm weight scale z, where Z = z * eye(m). The open-loop
 % trigger uses only the measured output (hence Z is m x m, m the measurement
 % dimension). All other hyperparameters (alpha, beta, delta, KL tolerance)
-% come from the scenario's params file. The z grid lives there (tuneSrdkfZGrid).
+% come from the scenario's params file. The z grid lives there (tuneSrdkfOpenZGrid).
 
   rng(42);
 
@@ -16,7 +16,7 @@ function tuneSRDKFOpen(scenario)
   totalTuneRuns = P.totalTuneRuns;
 
   %% Hyperparameter grid
-  zGrid = P.tuneSrdkfZGrid;
+  zGrid = P.tuneSrdkfOpenZGrid;
 
   %% Network and Plant
   disp("Creating Network")

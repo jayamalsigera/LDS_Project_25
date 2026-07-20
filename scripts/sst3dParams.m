@@ -68,10 +68,18 @@ tuneRdkfDeltaGrid  = [0.1, 0.5, 1, 2.5];
 tuneRdkfAlphaFixed = 10;
 tuneRdkfBFixed     = 0.05;
 
-% Stochastic-trigger weight scale z (Z = z * eye(m)). SDKF and SRDKF differ by
-% orders of magnitude. See tuneSDKFClosed / tuneSRDKFClosed / tuneSRDKFOpen.
-tuneSdkfZGrid  = [1e-5, 2e-5, 3e-5, 4e-5, 4.5e-5, 5e-5, 6e-5, 7e-5, 1e-4];
-tuneSrdkfZGrid = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
+% Stochastic-trigger weight scale z (Z = z * eye(m)). The three z-sweeps need
+% grids that differ by orders of magnitude because the trigger fires with
+% probability 1 - exp(-1/2 z'Zz) evaluated on very different quantities:
+% closed-loop weights the innovation y - C x_bar (O(10) in 3D), open-loop
+% weights the raw measurement y (O(1e3), dominated by position). The 3D
+% innovation is ~40x smaller than 2D, so the closed grids are scaled up
+% accordingly relative to sst2d. Grids picked to span TX ~2%-95% with the RMSE
+% knee resolved; SRDKF-Closed starts at 0.02 because the robust layer
+% destabilises when transmissions are starved below that.
+tuneSdkfZGrid       = [3e-3, 8e-3, 2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2];  % SDKF closed
+tuneSrdkfClosedZGrid = [2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2, 2.5, 5];      % SRDKF closed
+tuneSrdkfOpenZGrid   = [1e-8, 3e-8, 6e-8, 1e-7, 2e-7, 4e-7, 7e-7, 1.5e-6, 3e-6]; % SRDKF open (raw-measurement space)
 
 % Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
 % functions). b = 0 is the anchor (robust layer disabled); log grid through and

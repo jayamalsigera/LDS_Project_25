@@ -73,9 +73,13 @@ tuneRdkfAlphaFixed = 1;
 tuneRdkfBFixed     = 0.05;
 
 % Stochastic-trigger weight scale z (Z = z * eye(m)). SDKF and SRDKF differ by
-% orders of magnitude. See tuneSDKFClosed / tuneSRDKFClosed / tuneSRDKFOpen.
-tuneSdkfZGrid  = [1e-5, 2e-5, 3e-5, 4e-5, 4.5e-5, 5e-5, 6e-5, 7e-5, 1e-4];
-tuneSrdkfZGrid = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
+% orders of magnitude. The SRDKF closed and open triggers get separate grids
+% (they weight the innovation vs the raw measurement, so their z scales differ);
+% both retain the previously-shared values here so 2D behaviour is unchanged.
+% See tuneSDKFClosed / tuneSRDKFClosed / tuneSRDKFOpen.
+tuneSdkfZGrid       = [1e-5, 2e-5, 3e-5, 4e-5, 4.5e-5, 5e-5, 6e-5, 7e-5, 1e-4];
+tuneSrdkfClosedZGrid = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
+tuneSrdkfOpenZGrid   = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
 
 % Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
 % functions). b = 0 is the anchor (robust layer disabled); log grid through and

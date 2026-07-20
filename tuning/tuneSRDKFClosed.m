@@ -6,7 +6,7 @@ function tuneSRDKFClosed(scenario)
 % Sweeps the error-norm weight scale z, where Z = z * eye(m) and m is the
 % measurement dimension. All other hyperparameters (alpha, beta, delta, KL
 % tolerance) come from the scenario's params file. The z grid lives there
-% (tuneSrdkfZGrid).
+% (tuneSrdkfClosedZGrid).
 
   rng(42);
 
@@ -16,7 +16,7 @@ function tuneSRDKFClosed(scenario)
   totalTuneRuns = P.totalTuneRuns;
 
   %% Hyperparameter grid
-  zGrid = P.tuneSrdkfZGrid;
+  zGrid = P.tuneSrdkfClosedZGrid;
 
   %% Network and Plant
   disp("Creating Network")
