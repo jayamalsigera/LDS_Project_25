@@ -23,9 +23,9 @@ classdef SingleTarget3dModel
     n
     m
     p
-    % Per-sensor measurement-noise data (stored for reproducibility)
+    % Per-sensor measurement-noise data
     R        % full block-diagonal measurement covariance (p x p)
-    Perm     % 3 x 3 x S random permutations used to scramble R0
+    Perm     % 3 x 3 x S random permutations used to scramble R0 (inspection only)
     % Simulated State and Output
     T
     X
@@ -54,19 +54,35 @@ classdef SingleTarget3dModel
 
       % Measurement model: each sensor measures 2 of the 3 position coordinates,
       % laid out as a 3-row block with one identically-zero row (p_i = 3).
-      %   horizontal-horizontal: measures px, py
-      %   horizontal-vertical:   measures py, pz
-      % Split the sensors between the two types (first half hh, rest hv),
-      % analogous to the 2D C_i_a / C_i_b split.
-      C_hh = [zeros(3, 3), diag([1 1 0])];  % px, py  (row 3 zero)
-      C_hv = [zeros(3, 3), diag([0 1 1])];  % py, pz  (row 1 zero)
-      nHH = floor(S / 2);
-      self.C = [repmat(C_hh, nHH, 1); repmat(C_hv, S - nHH, 1)];
+      %
+      % The paper says each sensor measures "either two horizontal dimensions or
+      % a combination of one horizontal dimension and the vertical dimension".
+      % With x, y horizontal and z vertical, the second category has TWO
+      % realizations, so the design has THREE types -- all three coordinate
+      % pairs. The two matrices printed in the paper (diag(1,0,1), diag(0,1,1))
+      % are one exemplar from each verbal category, not the complete set.
+      %   horizontal-horizontal:  measures px, py
+      %   horizontal-vertical #1: measures py, pz
+      %   horizontal-vertical #2: measures px, pz
+      % Sensors are split as evenly as possible over the three types, in
+      % contiguous blocks (analogous to the 2D C_i_a / C_i_b split). This yields
+      % balanced per-coordinate coverage; dropping one type would leave one
+      % coordinate observed by twice as many sensors as the other two.
+      C_types = {[zeros(3, 3), diag([1 1 0])], ...   % px, py  (row 3 zero)
+                 [zeros(3, 3), diag([0 1 1])], ...   % py, pz  (row 1 zero)
+                 [zeros(3, 3), diag([1 0 1])]};      % px, pz  (row 2 zero)
+      nPerType = floor(S / 3) * ones(1, 3);
+      nPerType(1:(S - sum(nPerType))) = nPerType(1:(S - sum(nPerType))) + 1;
+      Cblocks = arrayfun(@(t) repmat(C_types{t}, nPerType(t), 1), 1:3, ...
+                         'UniformOutput', false);
+      self.C = vertcat(Cblocks{:});
       self.p = size(self.C, 1);
 
       % Measurement noise: R^i = sqrt(k) * P_i R0 P_i', with R0 a fixed
-      % ill-conditioned base and P_i a random permutation drawn once per sensor
-      % (stored in self.Perm so a re-constructed plant reproduces the same R^i).
+      % ill-conditioned base and P_i a random permutation drawn once per sensor.
+      % The draws are recorded in self.Perm for inspection only -- the
+      % constructor always redraws, so reproducing a given R^i requires seeding
+      % the RNG (`rng`) before construction, not passing Perm back in.
       % D^i = chol(R^i)' so the additive form y = C x + D v, v ~ N(0,I),
       % reproduces R^i; the assembled D/R are block-diagonal.
       R0 = 0.5 * diag([1 4 7]);

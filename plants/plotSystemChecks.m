@@ -48,11 +48,19 @@ function plotSystemChecks(A, B, C, sensorCount, G, tol)
   nodeIds = zeros(sensorCount, 1);
   sIdx    = 0;
 
+  % Measurement rows per sensor, derived from C rather than assumed: the 2D
+  % model has 2 rows per sensor and the 3D model has 3. Hardcoding 2 sliced the
+  % 3D blocks off by one sensor from sensor 2 onward.
+  senBlock = size(C, 1) / sensorCount;
+  assert(senBlock == round(senBlock), ...
+         'plotSystemChecks: size(C,1)=%d is not divisible by sensorCount=%d', ...
+         size(C, 1), sensorCount);
+
   for i = 1:numnodes(G)
     if ~G.Nodes(i, :).isSensor; continue; end
     sIdx = sIdx + 1;
     nodeIds(sIdx) = i;
-    rows = (2*(sIdx-1)+1):(2*sIdx);
+    rows = (senBlock*(sIdx-1)+1):(senBlock*sIdx);
     C_i  = C(rows, :);
     O    = obsv(A, C_i);
     N    = null(O);                   % columns span the unobservable subspace
