@@ -50,6 +50,18 @@ only on least-favorable data — on nominal data DKF2 beats DKF1, the paper's
 ordering. TX is *completely* insensitive to the data radius, so item 0a never bore
 on the saturation at all.
 
+Update (2026-07-26, **confirmed at full scale — §6.12**): 200 paired runs at
+T = 1000, |S| = 20 (Slurm 4802037) reproduce the prediction exactly. RDKF beats DKF
+by **+7.44% (38 SE)** at b = 0.005 and **loses by −6.77%** at b = 0.01 — the sign
+flip brackets (F)'s b_max = 0.0088. CRKF's gain rises monotonically 4.00 → 9.99%
+across the same b, so the data does reward a wide KL ball; what eq. (9) costs RDKF
+is *access* to it. **Caveat, and the one open question:** RDKF's win comes at 1.31×
+DKF's transmission rate, so it is not yet a clean comparison. §6.13 adds an iso-TX
+arm that retunes DKF's own trigger up to RDKF's bandwidth; a T = 250 sizing probe
+shows DKF's accuracy *improving* with bandwidth (1.373 → 1.327), so that test could
+overturn the win — in which case the finding becomes "Fig. 3's comparison is
+bandwidth-confounded" rather than "RDKF wins".
+
 Runs analysed:
 
 - `results/estimateSST3dLfm_T1000_N100s100_b0.05_blfm0.05_runs200_20260721-044004.mat`
@@ -1196,6 +1208,104 @@ falsifiable question rather than a diffuse "RDKF underperforms".
 
 ---
 
+### 6.12 Confirmation at full scale: 200 paired runs, T = 1000, |S| = 20
+
+`scripts/estimateSST3dLfmRobust.m`, Slurm job **4802037** (30 workers, ~11 min per
+b, 4 b values). N = 100, |S| = 20, T = 1000, 200 runs, α = 10, β = 0.2, δ = 0.5,
+LFM data radius 0.05 held fixed. Every filter at every b sees bit-identical
+trajectories (`rng(1000 + r)` inside the `parfor`); b is **shared** by CRKF and
+RDKF so the centralized robust filter defends the same KL ball.
+
+| b | DKF | RDKF | RDKF gain | SE | CRKF gain | SE | TX ratio | (F) |
+|---|-----|------|-----------|----|-----------|----|----------|-----|
+| 0.001 | 1.4575 | 1.3521 | **+7.23%** | 39.0 | +4.00% | 57.5 | 1.25 | feasible |
+| 0.005 | 1.4575 | 1.3490 | **+7.44%** | 38.2 | +6.97% | 54.4 | 1.31 | feasible |
+| 0.01  | 1.4575 | 1.5562 | −6.77% | −19.1 | +8.29% | 52.2 | 1.78 | INFEASIBLE |
+| 0.05  | 1.4575 | 1.8278 | −25.40% | −36.7 | +9.99% | 43.3 | 2.42 | INFEASIBLE |
+
+CKF 0.7897 and DKF 1.4575 are identical in all four rows, as the pairing requires;
+DKF's TX is 0.4140 throughout. RDKFLOC tracks RDKF closely (1.3517 / 1.3531 /
+1.5309 / 1.8090). Errors are ±SE of the *paired* difference, so ±39 SE is not a
+marginal effect.
+
+Three results, all confirming §6.11 at full statistical power:
+
+1. **RDKF beats DKF at admissible b, decisively — but at higher bandwidth, so the
+   comparison is not yet clean.** +7.44% at b = 0.005 with a 38 SE paired margin,
+   at a TX ratio of 1.31. The ratio is *on-model* — the paper's own Fig. 3 reports
+   0.38/0.28 = 1.36×, worse than ours — and the CRKF-vs-CKF arm (+6.97% at the
+   same b) has no bandwidth confound at all, so the ~7% is plausibly robustness
+   rather than packets. But "plausibly" is not a result: see §6.13, which tests it
+   directly. The 10-run scouting estimate (+5.5%) was conservative; the effect
+   grows at T = 1000.
+
+2. **The sign of the margin flips exactly where (F) predicts.** (F) gives
+   b_max = 0.0088. The gain is +7.44% at b = 0.005 and −6.77% at b = 0.01 — the
+   crossing is bracketed by the two rows straddling 0.0088. This is an independent
+   confirmation of (F) from RMSE, a completely different measurement than the
+   λmin(Ω⁻¹Ψ̄) probes that produced it.
+
+3. **The cost of eq. (9) is quantified: it is loss of access to large b, nothing
+   else.** CRKF's gain rises monotonically 4.00 → 9.99% — the data genuinely
+   rewards a wider KL ball. At b = 0.005 RDKF captures +7.44% against DKF while
+   CRKF captures only +6.97% against CKF, so **the distributed robust filter is
+   not deficient at all**; at feasible b it extracts at least as much robustness
+   benefit as the centralized one. What it cannot do is follow CRKF up to
+   b = 0.05, because the trigger dies there. The 9.99% − 7.44% ≈ 2.5 points is the
+   price of the event-triggered constraint, and (F) is exactly the statement of
+   that price.
+
+Taken with §6.11: eq. (9) carries an undocumented upper bound on b that the paper's
+published (0.05, 0.2) violates. Whether RDKF's *advantage* at admissible b is real
+or bought with bandwidth is settled by §6.13.
+
+---
+
+### 6.13 Iso-TX arm — is the RDKF gain bought with bandwidth? (queued)
+
+§6.12's win comes at TX 0.5417 against DKF's 0.4140. The clean test is to spend
+DKF's own trigger budget up to that rate and re-compare. In eq. (9) silence needs
+both ‖e‖²_Ω ≤ α and the Loewner sandwich, so DKF transmits more as α falls
+(innovation gate) or β falls (lower bound). Added as a second arm of
+`scripts/estimateSST3dLfmRobust.m`, at b = 0.005, α ∈ {10, 1, 0.3, 0.1, 0.01} ×
+β ∈ {0.2, 0.1, 0.05}, 200 paired runs each on the same trajectories.
+
+Two verdicts are printed:
+
+- **matched-TX** — the DKF config whose measured TX is nearest RDKF's. Generous to
+  RDKF, since the nearest config may sit *above* its TX.
+- **frugal-DKF** — the best DKF config with TX ≤ RDKF's. Asks whether RDKF beats
+  every DKF tuning at least as frugal as itself. This is the one that matters.
+
+A T = 250 sizing probe at the same S = 20 geometry (scratchpad `lever.m`) already
+establishes two things:
+
+| α \ β | 0.2 | 0.1 | 0.05 | 0.02 |
+|---|---|---|---|---|
+| 10 | 0.415 / 1.373 | 0.522 / 1.353 | 0.706 / 1.717 | 1.000 / 2.141 |
+| 1 | 0.437 / 1.338 | 0.577 / 1.410 | 0.818 / 1.825 | 1.000 / 2.141 |
+| 0.1 | 0.528 / **1.327** | 0.641 / 1.403 | 0.852 / 1.759 | 1.000 / 2.141 |
+| 0.01 | 0.773 / 1.499 | 0.815 / 1.583 | 0.973 / 2.027 | 1.000 / 2.141 |
+
+(TX / ssRMSE, 2 runs — sizing only, not a result.)
+
+1. **α is a weak lever, β a strong one.** α from 10 → 1 moves TX by 0.02; β from
+   0.2 → 0.1 moves it by 0.11. Any future attempt to retune DKF's bandwidth should
+   go through β.
+2. **DKF's accuracy *improves* with bandwidth over part of the range** — 1.373 at
+   TX 0.415 down to **1.327** at TX 0.528, i.e. DKF at roughly RDKF's transmission
+   rate is *better* than DKF at its published tuning. This is the confound in
+   concrete form, and it means the frugal test could plausibly overturn §6.12's
+   win. If it does, the finding is not "RDKF fails" but "the paper's Fig. 3
+   comparison is bandwidth-confounded", which is a criticism of the same weight.
+
+Note that β enters *both* the trigger and condition (F): lowering β to buy DKF
+bandwidth simultaneously *tightens* (F) for RDKF (b_max falls). The two filters
+therefore cannot be swept on a shared β, which is why only DKF is retuned here and
+RDKF is held at the paper's β = 0.2.
+
+---
+
 ## 7. Next steps (checklist)
 
 Ordered by leverage. Items 1, 0a and 0b are resolved; the diagnostic phase is
@@ -1235,6 +1345,14 @@ the (b, β) grid be **computed** instead of searched.
       λmin(Ω⁻¹Ψ̄) pinned at the Lemma-2 floor μ(0.05) = 0.6595, with TX = 1.0000
       throughout. The compounding deflation (§2.3) destroys the static margin, so
       even a perfectly isotropic Ω would not rescue b = 0.05 at β = 0.2.
+- [ ] **0f. Run the iso-TX arm (§6.13) — the gating experiment.** §6.12's +7.44%
+      comes at 1.31× DKF's bandwidth, and the sizing probe shows DKF *improving*
+      with bandwidth over exactly the relevant range (1.373 at TX 0.415 → 1.327 at
+      TX 0.528). Until the frugal-DKF verdict is in, "RDKF beats DKF" is not a
+      defensible claim. The arm is already in
+      `scripts/estimateSST3dLfmRobust.m`; it adds ~35 min to the same Slurm job.
+      Either outcome is a result — a surviving win vindicates RDKF, a reversal makes
+      Fig. 3's comparison bandwidth-confounded.
 - [ ] **0e. The one remaining question (§6.11).** The paper reports TX ≈ 0.38 at
       b = 0.05, β = 0.2, which its own Lemma 2 forbids via (F): λ̄(b) ≤ 1 + β needs
       b ≤ 0.0088 at β = 0.2. Its Fig. 4 local tolerances bⁱ ≈ 0.028–0.032 do not
@@ -1460,6 +1578,33 @@ The instrumentation lives in the session scratchpad, not the repo:
   Π bitwise equality on a symmetric graph, 3-type coverage, `plotSystemChecks`
   slicing on both the 2D and 3D plants). Cheap.
 
+- `select.m` — pre-flight config selection for §6.12 (paired 10-run, T=300 sweep
+  over b × δ × S). Its δ = 0.1 rows are a trap: DKF is badly detuned there
+  (2.13 vs 1.33 at δ = 0.5), so RDKF's apparent +26–31% is against a crippled
+  baseline. Read only the δ = 0.5 block. ~20 min.
+- `lever.m` — §6.13 sizing probe: DKF's TX and ssRMSE over α × β at the real
+  S = 20 geometry, T = 250, 2 runs. ~2 min. Establishes that β is the strong
+  bandwidth lever and that DKF's accuracy improves with bandwidth over the
+  relevant range — the reason §6.13 exists.
+- `smokeiso.m` — a `sed`-shrunk copy of `scripts/estimateSST3dLfmRobust.m`
+  (T = 60, 3 runs, N = 30, S = 8) used to exercise both arms end-to-end before
+  spending cluster time. Seconds. Regenerate it rather than editing it:
+
+      sed -e "s/^sensorCount = 20;/sensorCount = 8;/" \
+          -e "s/^bGrid = .*/bGrid = [0.005 0.05];/" \
+          -e "s/^sst3dParams;/sst3dParams; T = 60; totalRuns = 3; nodeCount = 30;/" \
+          scripts/estimateSST3dLfmRobust.m > scratchpad/smokeiso.m
+
 The one piece of this that is now in the repo is
 `tests/fusionWeightsUnitTest.m` (§6.5). The rest is session-scoped and will be
 lost; if it needs to survive, promote it to `tests/` or a `tuning/diag/` folder.
+
+### Running the full job
+
+`scripts/estimateSST3dLfmRobust.m` is the only repo script involved. Both arms run
+in one pass (~45 min at 200 runs / T = 1000 / 30 workers):
+
+    sbatch --mem=96G --cpus-per-task=32 slurm/run.sh "run('scripts/estimateSST3dLfmRobust.m')"
+
+then locally `./sync_results.sh`. The b sweep writes one `.mat` per b; the iso-TX
+arm writes one `..._isoTx_...mat`. Job 4802037 is the b-sweep-only predecessor.
