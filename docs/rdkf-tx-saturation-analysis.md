@@ -55,12 +55,17 @@ T = 1000, |S| = 20 (Slurm 4802037) reproduce the prediction exactly. RDKF beats 
 by **+7.44% (38 SE)** at b = 0.005 and **loses by −6.77%** at b = 0.01 — the sign
 flip brackets (F)'s b_max = 0.0088. CRKF's gain rises monotonically 4.00 → 9.99%
 across the same b, so the data does reward a wide KL ball; what eq. (9) costs RDKF
-is *access* to it. **Caveat, and the one open question:** RDKF's win comes at 1.31×
-DKF's transmission rate, so it is not yet a clean comparison. §6.13 adds an iso-TX
-arm that retunes DKF's own trigger up to RDKF's bandwidth; a T = 250 sizing probe
-shows DKF's accuracy *improving* with bandwidth (1.373 → 1.327), so that test could
-overturn the win — in which case the finding becomes "Fig. 3's comparison is
-bandwidth-confounded" rather than "RDKF wins".
+is *access* to it.
+
+Update (2026-07-26, **bandwidth confound eliminated — §6.13**): RDKF's win at
+b = 0.005 came at 1.31× DKF's transmission rate, so DKF was retuned over its own
+trigger (α × β, 15 configs, 200 paired runs, Slurm 4809910) to spend up to 0.97.
+**RDKF beats DKF's global optimum over that entire frontier — +5.43% at 25.4 SE,
+192 of 200 paired runs — and wins the matched-TX comparison by +5.67% at 23.6 SE.**
+DKF cannot buy accuracy with bandwidth on this data (its frontier dips ~2% then
+degrades to 2.57 at TX 0.97), so the gain is robustness, not packets. The
+diagnostic phase is now closed; the only open item is the paper-reading question
+0e.
 
 Runs analysed:
 
@@ -1230,14 +1235,13 @@ marginal effect.
 
 Three results, all confirming §6.11 at full statistical power:
 
-1. **RDKF beats DKF at admissible b, decisively — but at higher bandwidth, so the
-   comparison is not yet clean.** +7.44% at b = 0.005 with a 38 SE paired margin,
-   at a TX ratio of 1.31. The ratio is *on-model* — the paper's own Fig. 3 reports
-   0.38/0.28 = 1.36×, worse than ours — and the CRKF-vs-CKF arm (+6.97% at the
-   same b) has no bandwidth confound at all, so the ~7% is plausibly robustness
-   rather than packets. But "plausibly" is not a result: see §6.13, which tests it
-   directly. The 10-run scouting estimate (+5.5%) was conservative; the effect
-   grows at T = 1000.
+1. **RDKF beats DKF at admissible b, decisively.** +7.44% at b = 0.005 with a 38 SE
+   paired margin, at a TX ratio of 1.31. The ratio is *on-model* — the paper's own
+   Fig. 3 reports 0.38/0.28 = 1.36×, worse than ours. **The bandwidth asymmetry is
+   not the explanation: §6.13 retunes DKF up to TX 0.97 and RDKF still beats its
+   global optimum by +5.43% at 25.4 SE.** The 10-run scouting estimate (+5.5%) was
+   conservative on the raw margin; interestingly it matches the iso-TX margin almost
+   exactly.
 
 2. **The sign of the margin flips exactly where (F) predicts.** (F) gives
    b_max = 0.0088. The gain is +7.44% at b = 0.005 and −6.77% at b = 0.01 — the
@@ -1261,7 +1265,12 @@ or bought with bandwidth is settled by §6.13.
 
 ---
 
-### 6.13 Iso-TX arm — is the RDKF gain bought with bandwidth? (queued)
+### 6.13 Iso-TX arm — the gain is NOT bought with bandwidth (resolved)
+
+**Verdict: RDKF's advantage survives equal bandwidth, and in fact beats every DKF
+tuning tested at *any* bandwidth.** Slurm job **4809910**, 200 paired runs,
+T = 1000, |S| = 20, 15 DKF configs in 1549 s. Details below; the design and the
+sizing probe that motivated it follow after the result.
 
 §6.12's win comes at TX 0.5417 against DKF's 0.4140. The clean test is to spend
 DKF's own trigger budget up to that rate and re-compare. In eq. (9) silence needs
@@ -1304,6 +1313,55 @@ bandwidth simultaneously *tightens* (F) for RDKF (b_max falls). The two filters
 therefore cannot be swept on a shared β, which is why only DKF is retuned here and
 RDKF is held at the paper's β = 0.2.
 
+#### Result — DKF's full (TX, ssRMSE) frontier at 200 paired runs
+
+RDKF reference: **ssRMSE 1.3490 at TX 0.5417** (b = 0.005).
+
+| α \ β | 0.2 | 0.1 | 0.05 |
+|---|---|---|---|
+| 10 | 0.4140 / 1.4575 | 0.5238 / 1.4626 | 0.7511 / 1.9860 |
+| 1 | 0.4362 / 1.4298 | 0.5763 / 1.5669 | 0.8398 / 2.2280 |
+| 0.3 | 0.4727 / **1.4266** | 0.5973 / 1.5566 | 0.8316 / 2.1448 |
+| 0.1 | 0.5271 / 1.4302 | 0.6406 / 1.5742 | 0.8635 / 2.2040 |
+| 0.01 | 0.7919 / 1.8117 | 0.8320 / 1.9380 | 0.9722 / 2.5651 |
+
+(TX / ssRMSE. Every cell loses to RDKF at ≥ 23 SE.)
+
+- **matched-TX:** α = 0.1, β = 0.2 → TX 0.5271 (gap 0.0147 from RDKF's 0.5417),
+  ssRMSE 1.4302 vs RDKF 1.3490. Paired **+5.67%, 23.6 SE**.
+- **frugal-DKF:** α = 0.3, β = 0.2 → TX 0.4727, ssRMSE 1.4266. Paired **+5.43%,
+  25.4 SE ⇒ RDKF survives.**
+- **Stronger still, checked directly on the `.mat`:** 1.4266 is DKF's *global*
+  minimum over all 15 configs, spanning TX 0.4140 → 0.9722. So RDKF beats the best
+  DKF tuning found at **any** bandwidth, by +5.43% at 25.4 SE, winning **192 of 200
+  paired runs**. Doubling DKF's transmission rate does not close the gap; it widens
+  it.
+
+So the bandwidth confound is disposed of. The honest statement of §6.12 is now:
+at feasible b, RDKF is better than DKF *and* the difference is robustness, not
+packets. Note the direction of the remaining asymmetry — RDKF still spends 0.5417
+against the winning DKF's 0.4727, i.e. RDKF wins while being the *more* expensive
+filter on data where extra transmission is actively harmful (§6.10). That makes the
+result conservative, not flattering.
+
+#### Correction to the sizing probe
+
+The probe's second finding did **not** replicate. It reported DKF improving to
+1.327 at TX 0.528; at 200 runs the same corner (α = 0.1, β = 0.2) gives 1.4302
+against a 1.4575 baseline — a 1.9% dip, not a 3.4% one, and nowhere near RDKF.
+The probe also had β = 0.1 helping at α = 10 (1.353 vs 1.373); at 200 runs it
+*hurts* (1.4626 vs 1.4575). Two runs was not enough to order RMSE differences of a
+few percent, and the probe should have been read as a TX-lever measurement only —
+which is exactly what it was reliable for (the α-weak / β-strong finding holds
+exactly). The risk it flagged was real and worth spending the 26 min to rule out;
+it simply did not materialise.
+
+What survives from the probe, and is confirmed at full power: **DKF cannot buy
+accuracy with bandwidth on this data.** Its frontier is shallow-U — a ~2% dip
+between TX 0.41 and 0.47, then sharp degradation, reaching 2.57 at TX 0.97. That is
+the §6.10 artefact ("more transmission is worse on least-favorable data") showing up
+in DKF's own tuning, and it is why the iso-TX test was never going to be close.
+
 ---
 
 ## 7. Next steps (checklist)
@@ -1345,14 +1403,12 @@ the (b, β) grid be **computed** instead of searched.
       λmin(Ω⁻¹Ψ̄) pinned at the Lemma-2 floor μ(0.05) = 0.6595, with TX = 1.0000
       throughout. The compounding deflation (§2.3) destroys the static margin, so
       even a perfectly isotropic Ω would not rescue b = 0.05 at β = 0.2.
-- [ ] **0f. Run the iso-TX arm (§6.13) — the gating experiment.** §6.12's +7.44%
-      comes at 1.31× DKF's bandwidth, and the sizing probe shows DKF *improving*
-      with bandwidth over exactly the relevant range (1.373 at TX 0.415 → 1.327 at
-      TX 0.528). Until the frugal-DKF verdict is in, "RDKF beats DKF" is not a
-      defensible claim. The arm is already in
-      `scripts/estimateSST3dLfmRobust.m`; it adds ~35 min to the same Slurm job.
-      Either outcome is a result — a surviving win vindicates RDKF, a reversal makes
-      Fig. 3's comparison bandwidth-confounded.
+- [x] **0f. Iso-TX arm — DONE, RDKF survives (§6.13).** Slurm 4809910: DKF retuned
+      over α × β (15 configs, TX 0.414 → 0.972, 200 paired runs). RDKF beats DKF's
+      *global* optimum by **+5.43% at 25.4 SE**, 192/200 paired runs, and the
+      matched-TX comparison by +5.67% at 23.6 SE. "RDKF beats DKF at feasible b" is
+      now a defensible claim. The sizing probe's DKF-improves-with-bandwidth warning
+      did not replicate at 200 runs — see the correction in §6.13.
 - [ ] **0e. The one remaining question (§6.11).** The paper reports TX ≈ 0.38 at
       b = 0.05, β = 0.2, which its own Lemma 2 forbids via (F): λ̄(b) ≤ 1 + β needs
       b ≤ 0.0088 at β = 0.2. Its Fig. 4 local tolerances bⁱ ≈ 0.028–0.032 do not
@@ -1607,4 +1663,10 @@ in one pass (~45 min at 200 runs / T = 1000 / 30 workers):
     sbatch --mem=96G --cpus-per-task=32 slurm/run.sh "run('scripts/estimateSST3dLfmRobust.m')"
 
 then locally `./sync_results.sh`. The b sweep writes one `.mat` per b; the iso-TX
-arm writes one `..._isoTx_...mat`. Job 4802037 is the b-sweep-only predecessor.
+arm writes one `..._isoTx_...mat`. Job **4809910** is the complete run (both arms);
+4802037 is the b-sweep-only predecessor. Older runs were moved to
+`results/history/`.
+
+The iso-TX `.mat` nests everything under `runData`, so the frontier is read as
+`d = load(...); e = d.runData.extras; squeeze(mean(e.isoSs, 1))` — not `d.extras`.
+`e.isoSs` and `e.isoTx` are runs × α × β; `e.ssRdkfIso` is the paired RDKF column.
