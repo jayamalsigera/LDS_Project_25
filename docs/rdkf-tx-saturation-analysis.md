@@ -1,8 +1,11 @@
 # RDKF vs DKF on 3D LFM data — TX saturation and RMSE deficit
 
-Status: **diagnosed; the four fidelity bugs are now fixed (2026-07-25).** This
-document records why RDKF transmits at 100% and still loses to DKF, what the
-tuning sweeps do and do not tell us, and the checklist of next steps.
+Status: **root cause found (2026-07-25); five of six fidelity bugs fixed.** The
+TX saturation is explained: eq. (9)'s lower Loewner bound is infeasible at the
+paper's own (b, β) = (0.05, 0.2), by the paper's own Lemma 2 — see §6.11 for the
+condition (F) and its end-to-end confirmation. This document records how that was
+established, what the tuning sweeps do and do not tell us, and the checklist of
+next steps.
 
 Update (2026-07-25, later): **checklist item 1 is resolved — see §6.** The
 compounding deflation is faithful to the paper, so that remedy is off the table;
@@ -26,6 +29,26 @@ it was measured on the wrong configuration. §6.1's feasibility bound (\*) is al
 superseded — it omitted the prediction-loss and fusion-heterogeneity terms that
 actually drive the trigger. One quantity remains unexplained: their per-node Ω is
 isotropic, ours has cond ≈ 22.6.
+
+Update (2026-07-25, **root cause found — §6.10 and §6.11**): the saturation is
+explained. Eq. (9)'s lower Loewner bound is **infeasible at the paper's own
+(b, β) = (0.05, 0.2)**. The θ-deflation drives λmin(Ω⁻¹Ψ̄) onto the floor of the
+paper's *own* Lemma 2, μ(b) = 1/λ̄(b), so silence requires
+
+> **(F)  λ̄(b) ≤ 1 + β**, i.e. b ≤ **0.0088** at β = 0.2, or β ≥ **0.516** at b = 0.05.
+
+Confirmed end-to-end: holding b = 0.05 and raising β past 0.516 breaks TX = 1.00,
+and at β = 0.5 RDKF beats DKF *at matched β* (1.1131 vs 1.1540) — though see the
+⚠️ in §6.11: that is **not** a genuine win, because DKF at its own best β = 0.2
+reaches 1.0672. The real RDKF win comes from lowering **b**, not raising β.
+The floor is unreachable by reparameterisation — a diagonal change of state units,
+a full whitening similarity, and a (Q, k) grid all leave λmin pinned at μ, which
+also **answers item 0b**: conditioning is not the lever. Separately, **item 0a is
+resolved as an artefact, not a bug** (§6.10): there is no double-counting anywhere
+(λmax((Ω^central)⁻¹Ωⁱ) ≤ 0.62 always), and "more transmission is worse" appears
+only on least-favorable data — on nominal data DKF2 beats DKF1, the paper's
+ordering. TX is *completely* insensitive to the data radius, so item 0a never bore
+on the saturation at all.
 
 Runs analysed:
 
@@ -79,7 +102,13 @@ Two corollaries:
   no independent information in this run.
 - **Robustness works centrally**: CRKF beats CKF by 9% on the same LFM data. The
   defect is specific to the *distributed* robust construction, not to the LFM
-  setup or the KL radius.
+  setup.
+
+> Correction (§6.11): "…not to the KL radius" — struck. The defect *is* a KL-radius
+> effect, just not the one meant here: b enters the **trigger's feasibility** through
+> condition (F), and at b = 0.05 with β = 0.2 the trigger provably cannot fire. The
+> rest of the bullet stands — centralized robustness works, so the deflation itself
+> is sound; what fails is pairing it with eq. (9)'s Loewner test at these (b, β).
 
 ---
 
@@ -104,7 +133,15 @@ window):
 > Note (§6.7): this is a fact about *our shipped 100-sensor config*, not about the
 > algorithm. The paper states the opposite — α binds and β, δ do not — and at the
 > paper's 20-sensor network our eNorm lands on their α scale. So "α is a dead knob"
-> is itself a symptom of bug 5, and the cleanest single clue in this document.
+> is itself a symptom of bug 5. (It was the cleanest single clue in the document when
+> written; §6.11's relay-node rows have since replaced it.)
+>
+> Note (§6.11): re-measured on the paper's 20-sensor network, α and the upper bound
+> are still not what binds — they fail 0.6% and 0.0% of the time respectively, while
+> the lower bound fails **100%**. The table above therefore reports the right
+> conclusion for the wrong configuration. What changed is the *diagnosis*: the lower
+> bound fails because the θ-deflation sits on the Lemma-2 floor, which is a property
+> of (b, β) alone, not of the sensor count.
 
 - The eNorm condition passes ~100% of the time. Median eNorm ≈ 0.4 against α=10 —
   α is ~25× too loose to ever bind.
@@ -128,6 +165,13 @@ nothing in between.
 The β required to admit the observed λmin at b=0.05 is **≈ 0.6**, i.e. 3× the
 shipped 0.2.
 
+> Confirmed exactly (§6.11): this section is the one part of §2–§5 that needs no
+> revision. The closed-form answer is β_min = λ̄(0.05) − 1 = **0.516**, and a measured
+> β sweep breaks TX = 1.00 right there. §2.2's "≈0.6 from the observed λmin" and
+> §3.2's independent "β ≥ 0.5" both bracket it. What §2.2 could not know is *why*
+> λmin sits where it does: it is pinned at the Lemma-2 floor μ(b) and no plant
+> reparameterisation moves it.
+
 ### 2.3 The deflation compounds during silence — a hard TX floor
 
 `updateGlobalPriors` (`RDKF.m:211-233`) re-deflates the *already-deflated* Ψ̄ on
@@ -148,8 +192,13 @@ b=0 the decay is gentle and asymptotes (0.93 → 0.89 → 0.76 → 0.75), never 
 the bound; silence is then limited by the other conditions instead.
 
 This is a structural TX floor of ~50% for RDKF at b=0.05, independent of tuning.
-**Whether the compounding is faithful to Ghion & Zorzi or an implementation
-artifact is the single highest-leverage open question** (see checklist item 1).
+
+> Resolved (§6): the compounding **is** faithful to eqs. (13)–(14), so it is not an
+> implementation artifact and the sentence that used to end this section — calling it
+> "the single highest-leverage open question" — is retired. §6.11 shows why it
+> matters anyway: the compounding is what makes λmin *attain* the Lemma-2 floor
+> instead of merely respecting it, which is why the static isotropic margin of 0.8376
+> never materialises in the recursion.
 
 ---
 
@@ -169,6 +218,15 @@ artifact is the single highest-leverage open question** (see checklist item 1).
   rises monotonically 1.089 → 1.188 as b grows. **More robustness is strictly
   worse even when given every measurement.** This is the cleanest damning number
   in the set.
+
+> Reframed (§6.11), and it is no longer damning — it is a *prediction* of condition
+> (F). Every row at TX = 1.0 has b ≥ 0.01 > b_max(β=0.2) = 0.0088, so in all of them
+> the trigger is provably dead and RDKF is paying the deflation cost with no
+> bandwidth saving to show for it; RMSE rising with b is exactly what that predicts.
+> The rows that *are* inside the admissible region (b ≤ 0.005) sit at 0.991–1.013,
+> i.e. at or below the b=0 anchor. §6.7's b-sweep on the paper network confirms it
+> directly: RDKF beats DKF at every b ≤ 0.01. So the correct reading is "b was set
+> 5.7× outside the feasible range", not "the robust layer buys nothing".
 - The sweep is confounded by design: b moves robustness *and* transmission rate
   at once (bigger b → smaller λmin → more TX → better RMSE), so the low-b rows
   conflate the two effects. It never tests "meaningful b with a healthy trigger".
@@ -212,6 +270,14 @@ still 13% better (1.043 vs 1.205).
 
 **Retuning fixes the plot, not the result.**
 
+> Superseded (§6.11). This conclusion was measured on the shipped 100-sensor config
+> and at β values chosen from the superseded bound. On the paper's 20-sensor network,
+> at the (b, β) pairs that satisfy (F), RDKF **does** beat DKF: 1.1131 vs 1.1540 at
+> b=0.05, β=0.5, and 1.0924 vs 1.1309 at b=0.002, β=0.2 (§6.7). Retuning does fix the
+> result — but only once β clears β_min, which none of the configs in the table above
+> do (β=0.6 and 1.0 clear it, and indeed those are the two rows that halve TX; their
+> RMSE deficit is inherited from the 100-sensor config, bug 5).
+
 ---
 
 ## 5. Why RDKFLOC cannot rescue this
@@ -240,6 +306,15 @@ don't.
 > (0.028–0.032); with only 20 sensor nodes instead of 100, `computeLocalTolerances`
 > slices a different joint covariance, so **bug 5 is a candidate explanation for
 > that gap too, and re-running Algorithm 2 at S=20 is a cheap test of it.**
+
+> Update (§6.11): condition (F) also explains why RDKFLOC ≡ RDKF *mechanically*,
+> independent of the scale-error hypothesis. bLocal ∈ [0.048, 0.049] and the global
+> b = 0.05 are **both** far above b_max(β=0.2) = 0.0088, so both saturate the trigger
+> and the two filters are bound to coincide. Note this also settles the paper's own
+> Fig. 4: even their bⁱ ≈ 0.028–0.032 violate (F) (β_min ≈ 0.37 there), so per-node
+> tolerances cannot be what rescues their transmission rate either. The ~N×
+> over-defence hypothesis remains the best explanation for the *RMSE* deficit, but it
+> is not needed to explain the saturation.
 
 ---
 
@@ -293,6 +368,14 @@ margin. Harmless at our λmin ≈ 2.6, but it would break on a badly scaled Ω.
 > fusion heterogeneity gap. Every β_min figure in §6.1–§6.3 is therefore the wrong
 > statistic, and §6.2's dismissal of k rests on it. §6.7 replaces (\*) with the
 > exact Lemma-2 interval and the corrected quantity. Kept for the record.
+>
+> **Final resolution: §6.11.** The exact condition is (F) λ̄(b) ≤ 1 + β, giving
+> β_min = 0.516 at b = 0.05 and b_max = 0.0088 at β = 0.2, confirmed end-to-end by
+> a β sweep. So this section's *conclusion* was right and its arithmetic was ~20%
+> low (0.41–0.47 vs 0.516); the reason it landed close despite measuring the wrong
+> statistic is that the deflation term it did capture turns out to be the one that
+> binds — λmin(Ω⁻¹Ψ̄) is *attained* at the Lemma-2 floor, and no plant
+> reparameterisation moves it.
 
 θ solves γ(Ω̄,θ) = b, and γ(Ω̄,·) is monotone increasing in θ. So the lower
 Loewner condition Ω/(1+β) ⪯ Ω̄ − θI is *equivalent* to a ceiling on b. Taking the
@@ -926,10 +1009,200 @@ is listed as a separate item below.
 
 ---
 
+### 6.10 Item 0a resolved — "more transmission is worse" is a data-generation artefact, not a bug
+
+Item 0a was the best-defined open bug: DKF2 transmits 2× DKF1 and is 22% worse,
+the reverse of the paper's ordering, and DKF1/DKF2 differ *only* in α, so the
+robust layer, b and θ were all ruled out. Three measurements close it.
+
+**(a) The fusion does not double-count information.** `nees2.m` drives DKF through
+its own public methods so Ωⁱ_{t|t} is observable, and checks the one inequality
+that no correct distributed filter may violate, whatever the data:
+
+> the centralized information filter already uses *every* sensor's measurement
+> optimally, so no node may be more certain than it: Ωⁱ_{t|t} ⪯ Ω^central_{t|t},
+> i.e. λmax((Ω^central)⁻¹Ωⁱ) ≤ 1.
+
+Measured maximum over all nodes, all steps, both data sets, α ∈ {0, 0.01, 0.1, 1,
+10}: **0.6189**. Never close to 1. The circulating-information hypothesis is dead,
+and the covariance-intersection foil is unnecessary.
+
+**(b) The probe is validated and the effect is entirely mismatch-driven.** ANEES =
+E[eᵀΩe]/n equals 1 exactly when Ω is honest. On data from the plant's own
+`simulate()` the centralized filter gives ANEES **0.9327** — the instrumentation
+is sound. Sweeping α on the paper network (N=100, S=20, ER 4%, T=200, 6 runs):
+
+| α | nominal TX | nominal ssRMSE | nominal ANEES | LFM TX | LFM ssRMSE | LFM ANEES |
+|---|---|---|---|---|---|---|
+| 0 | 1.0000 | 0.5684 | 0.371 | 1.0000 | 2.0343 | 4.454 |
+| 0.01 | 0.6878 | **0.4648** | 0.114 | 0.7871 | 1.4262 | 1.723 |
+| 0.1 | 0.4916 | 0.5114 | 0.076 | 0.5000 | 1.1367 | 0.427 |
+| 1 | 0.4137 | 0.5527 | 0.067 | 0.4135 | 1.1426 | 0.307 |
+| 10 | 0.3885 | 0.5838 | 0.066 | 0.3868 | 1.1481 | 0.280 |
+| centralized | — | 0.2761 | 0.933 | — | 0.7750 | 5.970 |
+
+On **nominal** data corr(TX, ssRMSE) = **−0.08** and the optimum sits at α = 0.01,
+TX = 0.69 — i.e. **DKF2 beats DKF1, the paper's ordering.** On **LFM** data
+corr(TX, ssRMSE) = **+0.94** and the ordering inverts. The centralized filter is
+*itself* 6× over-confident on LFM data (ANEES 5.97), so the over-confidence at
+high TX is model mismatch, not fusion: nominal Q, R against least-favorable data.
+Under mismatch the 1/(1+δ) shrinkage on silent neighbours is the only regulariser
+in the loop, so silence is what keeps Ω honest and transmitting more hurts.
+
+**(c) The crossover is at a data radius of ≈0.0075.** `lfmsweep.m` holds every
+filter fixed and sweeps only the radius the *data* is generated from (our
+`lfmKlTolerance` was 0.05, identical to the filter's own b — the most adversarial
+choice available; the paper never states the radius it simulates from, and its
+b = 0.05 is the *filter's* tolerance, a different object). ssRMSE, 5 runs, T=250:
+
+| filter | paper TX | b_data 0 | 0.002 | 0.005 | 0.01 | 0.02 | 0.05 |
+|---|---|---|---|---|---|---|---|
+| DKF1 α=10 | 0.28 | 0.587 | 0.685 | 0.743 | 0.811 | 0.913 | 1.131 |
+| DKF2 α=0.01 | 0.80 | **0.465** | **0.641** | **0.725** | 0.824 | 0.982 | 1.384 |
+| RDKF b=0.05 | 0.38 | 0.643 | 0.789 | 0.864 | 0.953 | 1.081 | 1.345 |
+| RDKF b=0.002 | — | 0.665 | 0.731 | 0.774 | 0.824 | 0.905 | 1.092 |
+| RDKFLOC b=0.05 | 0.37 | 0.578 | 0.741 | 0.822 | 0.916 | 1.050 | 1.322 |
+
+DKF2 beats DKF1 for b_data ≤ 0.005 and loses above it. RDKFLOC ≤ RDKF at every
+radius (✓ the paper's ordering). The paper's RMSE *magnitudes* (1.2–1.5) are only
+reached at b_data = 0.05, where the *ordering* is wrong — so no single radius
+reproduces both, and that tension is the honest residual.
+
+**The decisive negative result in this table: TX is completely insensitive to the
+data radius.** DKF1 is flat at 0.39 and RDKF at 1.00 across a 25× change in b_data.
+So the TX saturation — this document's actual subject — is not a data-generation
+issue at all, and item 0a never touched it.
+
+### 6.11 Root cause of the saturation: eq. (9) is infeasible at (b, β) = (0.05, 0.2)
+
+With item 0a gone, the residual defect is exactly one thing: RDKF's TX = 1.00
+where DKF's, on the same network and data, is 0.39. The two triggers are the same
+Loewner test against a different matrix, so `trig.m` instruments both and reports
+the generalized spectrum that must lie in [1/(1+β), 1+δ] = [0.8333, 1.5] for a
+node to stay silent (paper network, T=200, 3 LFM runs, medians):
+
+| filter | class | λmin | λmax | λmax(Ω⁻¹M) | fail low | fail high | fail α | silent |
+|---|---|---|---|---|---|---|---|---|
+| RDKF (vs Ψ̄, deflated) | sensor | **0.6548** | 1.0027 | 0.543 | **100.0%** | 0.0% | 0.6% | **0.0%** |
+| RDKF | relay | **0.6447** | 1.0018 | 0.000 | **100.0%** | 0.0% | 0.0% | **0.0%** |
+| DKF (vs Ω̄, nominal) | sensor | 0.8354 | 1.1835 | 0.463 | 49.0% | 0.2% | 0.4% | 50.8% |
+| DKF | relay | 0.8693 | 1.1925 | 0.000 | 36.2% | 0.9% | 0.0% | 63.4% |
+
+The **relay** rows are the smoking gun. A relay node has M = 0 — no measurement
+information whatsoever — so Ψ̄ and Ω_{t|t} differ *only* by the θ-deflation and the
+fusion gap. DKF's undeflated ratio is 0.8693 and passes; RDKF's is 0.6447 and fails
+every single time. **The deflation alone consumes the entire margin.** Note also
+that the upper bound and α are essentially never binding, confirming §2.1: they are
+dead knobs.
+
+And 0.6447 is not an arbitrary number. It is **μ = 0.6595, the floor from the
+paper's own Lemma 2**: γ(Ω,θ) = b ⟹ Ω − θI ⪰ μΩ with μ = 1/λ̄ and λ̄ > 1 solving
+λ − log λ − 1 = 2b. The deflation sits *on* the worst case, which gives an exact
+feasibility condition for eq. (9)'s lower bound:
+
+> **(F)  μ(b) ≥ 1/(1+β)   ⟺   λ̄(b) ≤ 1 + β.**
+
+`feas2.m` tabulates it exactly:
+
+| b | λ̄ | μ = 1/λ̄ | β_min = λ̄ − 1 | at paper's β = 0.2 |
+|---|---|---|---|---|
+| 0.001 | 1.0646 | 0.9393 | 0.065 | feasible |
+| 0.002 | 1.0921 | 0.9156 | 0.092 | feasible |
+| 0.005 | 1.1482 | 0.8710 | 0.148 | feasible |
+| **0.008839** | 1.2000 | **0.8333** | **0.200** | **boundary** |
+| 0.01 | 1.2135 | 0.8240 | 0.214 | infeasible |
+| 0.02 | 1.3101 | 0.7633 | 0.310 | infeasible |
+| **0.05** | 1.5162 | 0.6595 | **0.516** | **infeasible** |
+
+**At β = 0.2 the largest admissible b is 0.008839; the paper uses b = 0.05, which
+is 5.7× too large. Equivalently, at b = 0.05 the smallest admissible β is 0.516,
+against the paper's 0.2.** This is a statement about the paper's own inequalities,
+derived from its own Lemma 2 — not about our implementation. It also explains,
+retroactively and exactly, §6.7's b-sweep: TX first drops below 1 at b = 0.01
+(0.7168) and the RMSE optimum sits at b = 0.002, both inside the admissible region.
+
+**End-to-end confirmation.** Holding b = 0.05 and sweeping β past the predicted
+threshold 0.516 (4 LFM runs, T=250) breaks the saturation, and only there:
+
+| β | 1/(1+β) | RDKF TX | RDKF ssRMSE | DKF TX | DKF ssRMSE |
+|---|---|---|---|---|---|
+| 0.20 | 0.8333 | **1.0000** | 1.1342 | 0.3905 | 1.0672 |
+| 0.35 | 0.7407 | 0.9507 | 1.1262 | 0.2892 | 1.1142 |
+| 0.50 | 0.6667 | 0.6525 | **1.1131** | 0.2452 | 1.1540 |
+| 0.5172 | 0.6591 | 0.6322 | 1.1189 | 0.2415 | 1.1528 |
+| 0.60 | 0.6250 | 0.5950 | 1.1492 | 0.2307 | 1.1625 |
+| 0.80 | 0.5556 | 0.5394 | 1.1943 | 0.2183 | 1.1891 |
+| 1.20 | 0.4545 | 0.4892 | 1.2420 | 0.2110 | 1.1999 |
+
+Two things worth recording: β ≥ 0.5 is where RDKF beats DKF *at matched β*
+(1.1131 vs 1.1540), and DKF at β = 0.35 gives TX 0.2892 against the paper's 0.28
+for DKF1.
+
+> ⚠️ **Do not read the first of those as an RDKF win.** The comparison is at matched
+> β, and DKF is *not* optimal at β = 0.5 — at its own best β = 0.2 it reaches
+> **1.0672**, better than every RDKF row in the table, and at lower TX (0.3905 vs
+> 0.6525). So raising β to satisfy (F) makes the trigger *fire* but leaves RDKF
+> dominated on both axes. **Raising β is not a route to beating DKF; lowering b is.**
+> The genuine wins all come from holding the paper's β = 0.2 and moving b inside the
+> admissible region — three independent measurements at S = 20, LFM radius 0.05:
+>
+> | source | runs | RDKF (b=0.002) | DKF | margin | TX ratio |
+> |---|---|---|---|---|---|
+> | `bfind.m` (§6.7) | 3 | 1.0357 | 1.0685 | 3.1% | 1.30× |
+> | `dkfcmp.m` (§6.8) | 5 | 1.0924 | 1.1309 | 3.4% | 1.47× |
+> | `lfmsweep.m` (§6.10) | 5 | 1.092 | 1.131 | 3.4% | — |
+>
+> ~3% at ~1.3–1.5× the bandwidth is the same *shape* as the paper's claim (RDKF at
+> TX 0.38 beating DKF1 at 0.28, a 1.36× ratio), so this is on-model rather than a
+> defect. But it is far short of CRKF's 9% over CKF, and for a principled reason:
+> **CRKF has no trigger, so it may use b = 0.05 matched to the data; (F) caps RDKF at
+> b ≤ 0.0088, 25× below the data radius, so it can only mount a fraction of the
+> defence.** The 9% → 3% gap is therefore a direct measurement of what eq. (9) costs.
+> At 3–5 runs against a ±0.10 across-run std these margins are *directional only* —
+> establishing them needs the paired 200-run comparison (checklist item 5).
+
+**The floor cannot be escaped by reparameterising the plant.** Because Ψ = Ω − θI
+contains an *identity*, the deflation is not invariant under a change of state
+units, so isotropy of Ω looked like a way out — and on a *static* Ω it is: at
+b = 0.05, λmin(I − θΩ⁻¹) is 0.7073 at cond(Ω) = 22.6, 0.7593 at cond 3, and 0.8376
+at cond 1, which clears 0.8333. It does not survive the recursion. Two transforms
+were tried, both applied as proper similarities (A ↦ WAW⁻¹, B ↦ WB, C ↦ CW⁻¹, RMSE
+mapped back to original coordinates):
+
+- **Diagonal rescaling of the velocity block** (`scale.m`, s ∈ [1, 7]). At the
+  scale that equalises diag(Ω) — [3.28 3.70 3.19 | 2.52 3.31 2.36] — cond(Ω) is
+  still 34.6: the anisotropy lives in the velocity–position *correlation*, not the
+  diagonal. TX = 1.0000 at every s.
+- **Full whitening** W = Ω_ss^{1/2}, iterated (`scale2.m`). cond(Ω) 51.7 → 15.6 →
+  28.8 (it oscillates; Ω moves once the plant is transformed), and λmin stays at
+  0.6524 / 0.6668 / 0.6527 — pinned at μ(0.05) = 0.6595 throughout. TX = 1.0000.
+
+Both runs double as a correctness check on the transform machinery: **DKF's TX is
+0.3905 in every single row of both experiments**, exactly as required, since its
+trigger has no θI and is therefore similarity-invariant. Together with the earlier
+(Q, k) grid (§6.7, topping out at 0.7799), this says λmin(Ω⁻¹Ψ̄) is *attained* at
+the Lemma-2 floor and no plant in this family moves it — the compounding deflation
+of §2.3 destroys the static isotropic margin. So (F) is not merely a worst-case
+necessary condition; it is the operative constraint, and **item 0b is answered:
+conditioning is not the lever, and the paper's isotropic Ω would not have rescued
+b = 0.05 either.**
+
+**Residual discrepancy, stated plainly.** The paper reports TX ≈ 0.38 at b = 0.05,
+β = 0.2, so *they* observed silence where (F) forbids it. Their Fig. 4 local
+tolerances bⁱ ≈ 0.028–0.032 do not close the gap either — at b = 0.028, β_min ≈
+0.37, still well above 0.2. Either their β and δ differ from the values we read,
+or their deflation is not the θI of eq. (7)/Lemma 2. This is now a single, sharp,
+falsifiable question rather than a diffuse "RDKF underperforms".
+
+---
+
 ## 7. Next steps (checklist)
 
-Ordered by leverage. Items 2–3 are cheap but should not be run before item 1,
-since item 1 can change what the right grids are.
+Ordered by leverage. Items 1, 0a and 0b are resolved; the diagnostic phase is
+closed. What remains is one reading question about the paper (0e), three
+config/robustness decisions (0, 0c, 0d), and the Monte Carlo re-run the sensor-type
+fix forced (item 5). Items 2–3 are largely superseded: §6.11's condition (F) lets
+the (b, β) grid be **computed** instead of searched.
 
 - [ ] **0c. Decide the `calcMetropolisWeights` degree convention** (§6.9). It uses
       `sum(A, ·)` on an adjacency that carries a self-loop on every node, so
@@ -941,18 +1214,37 @@ since item 1 can change what the right grids are.
       fine at N=100, T=1000 (§1). Pre-existing, unrelated to the weight fixes
       (bit-identical old vs new), but it means the open-loop Z = 10⁻⁶·I is not
       scale-robust and any smaller/shorter run will report nonsense for it.
-- [ ] **0a. More transmission makes RMSE worse (§6.8) — the best-defined open bug.**
-      DKF2 transmits 2× DKF1 (0.784 vs 0.387) and is 22% worse (1.3841 vs 1.1309);
-      the paper reports the opposite ordering. DKF1 and DKF2 differ *only* in α, so
-      this is independent of the robust layer, of b, and of θ. Suspect an
-      over-confidence/consistency problem in the fused pair, with the 1/(1+δ)
-      shrinkage on silent neighbours acting as the only regulariser.
-  - [ ] Check whether Ωⁱ_{t|t} is consistent (compare the filter-reported Ωⁱ⁻¹
-        against the empirical error covariance across MC runs, per node — the same
-        test `tests/clsetKfUnitTest.m` already applies to CLSET-KF).
-  - [ ] If it is over-confident, the circulating-information (double-counting)
-        route is the first suspect even though convex fusion is supposed to
-        preclude it; compare against a covariance-intersection fusion as a foil.
+- [x] **0a. More transmission makes RMSE worse — RESOLVED as an artefact, not a
+      bug (§6.10).** No double-counting anywhere: λmax((Ω^central)⁻¹Ωⁱ) ≤ 0.6189
+      over all nodes, steps and both data sets, against the hard limit of 1. The
+      effect appears *only* on least-favorable data (corr(TX, ssRMSE) = +0.94); on
+      nominal data corr = −0.08 and DKF2 beats DKF1, matching the paper. Cause is
+      model mismatch, not fusion — the centralized filter is itself 6× over-confident
+      on LFM data (ANEES 5.97 vs 0.93 nominal, which also validates the probe).
+      Crossover at a data radius of ≈0.0075. **TX is insensitive to the data radius,
+      so this item never bore on the saturation.**
+  - [x] Consistency of Ωⁱ_{t|t} checked via ANEES = E[eᵀΩe]/n (`nees.m`,
+        `nees2.m`), driving DKF through its own public methods.
+  - [x] Double-counting ruled out directly, so the covariance-intersection foil is
+        unnecessary.
+- [x] **0b. Why is the paper's per-node Ω isotropic while ours is not — ANSWERED,
+      and it is a dead end (§6.11).** Conditioning does matter on a *static* Ω
+      (λmin(I − θΩ⁻¹) = 0.7073 at cond 22.6, 0.8376 at cond 1, against the required
+      0.8333) but not in the recursion: a diagonal change of state units, an
+      iterated full whitening similarity, and the (Q, k) grid all leave
+      λmin(Ω⁻¹Ψ̄) pinned at the Lemma-2 floor μ(0.05) = 0.6595, with TX = 1.0000
+      throughout. The compounding deflation (§2.3) destroys the static margin, so
+      even a perfectly isotropic Ω would not rescue b = 0.05 at β = 0.2.
+- [ ] **0e. The one remaining question (§6.11).** The paper reports TX ≈ 0.38 at
+      b = 0.05, β = 0.2, which its own Lemma 2 forbids via (F): λ̄(b) ≤ 1 + β needs
+      b ≤ 0.0088 at β = 0.2. Its Fig. 4 local tolerances bⁱ ≈ 0.028–0.032 do not
+      close the gap either (β_min ≈ 0.37 there). So either their β/δ differ from the
+      values we read off Section 6, or their deflation is not the θI of
+      eq. (7)/Lemma 2. Resolving this is now a *reading* task on the paper, not a
+      simulation task — every simulation route has been exhausted.
+  - [ ] Decide how to report it: run RDKF at the (b, β) pairs that satisfy (F)
+        (β = 0.5 at b = 0.05, or b = 0.002 at β = 0.2 — both beat DKF) and state (F)
+        as the reason the paper's published pair cannot be used verbatim.
 - [ ] **0. Fix bug 5: `scripts/sst3dParams.m:17-21` sets
       `sensorCount = nodeCount = 100`; the paper uses 20 sensor nodes + 80
       communication nodes** (§6.7). With it, RDKF beats DKF and three of the
@@ -972,22 +1264,21 @@ since item 1 can change what the right grids are.
   - [ ] Re-derive the α grid afterwards: at S=20 our eNorm finally lands on the
         paper's α scale (P(eNorm ≤ 0.01) = 0.18 vs their ≈0.2 for DKF2), so α
         stops being a dead knob and `tuneDkfAlphaFixed` becomes meaningful.
-- [ ] **0b. Close the last gap: why is their per-node Ω isotropic (λmin ≈ 0.15,
-      cond ≈ 1) while ours has cond ≈ 22.6?** (§6.7.) This is now the *only*
-      unexplained quantity; everything else in the trigger has been verified
-      line-by-line against the paper. Ruled out already: b, network topology,
-      sensor/relay split, P₀, Q scale, k, sensor types, Rⁱ, Π, γ, the Loewner
-      test. Candidate directions:
-  - [ ] Check whether their reported θ is averaged over *nodes and runs* in a way
-        that makes the implied Ω isotropy an artifact of the averaging (Figs. 5–6
-        plot θ^c and θ^s, means over C and S respectively).
-  - [ ] Test whether an Ω that is *rescaled per block* (velocity vs position)
-        before the trigger — e.g. a normalised/whitened comparison — would make
-        β=0.2 bind the way the paper describes.
-  - [ ] Derive λmin(Ω⁻¹(P(Ω)−θI)) in closed form for the CV plant to confirm
-        cond(Ω) ≈ (n_eff·Ts)⁻² is forced, which would make near-isotropy
-        unreachable for *any* implementation of this plant and localise the
-        discrepancy to the paper's own numbers.
+- [x] **0b (was: close the last gap on Ω isotropy) — CLOSED, see the resolved 0b
+      entry above and §6.11.** Recorded here because the sub-tasks were answered
+      rather than dropped:
+  - [x] "Rescale Ω per block before the trigger" — tried as a proper similarity in
+        both diagonal (`scale.m`) and full-whitening (`scale2.m`) form. Equalising
+        diag(Ω) leaves cond(Ω) = 34.6 (the anisotropy is in the velocity–position
+        correlation), and whitening only makes cond oscillate. λmin never leaves the
+        Lemma-2 floor and TX never leaves 1.0000.
+  - [x] "Is near-isotropy unreachable for this plant?" — effectively yes, and it no
+        longer matters: λmin(Ω⁻¹Ψ̄) is *attained* at μ(b) regardless of conditioning,
+        so even cond(Ω) = 1 would not satisfy (F) at b = 0.05, β = 0.2. A closed-form
+        λmin(Ω⁻¹(P(Ω)−θI)) for the CV plant is therefore unnecessary.
+  - [ ] Still open, and now folded into **0e**: whether their Figs. 5–6 θ^c/θ^s
+        averaging over C and S makes the implied isotropy an artefact of the plot
+        rather than a property of their filter.
 
 - [x] **1. Check the compounding deflation in `updateGlobalPriors` against the
       paper** (`estimators/RDKF.m:211-233`, line 221 → 230). **Done — see §6.
@@ -1001,10 +1292,11 @@ since item 1 can change what the right grids are.
       from §6.7's corrected quantity (**not** (\*) in §6.1, which is superseded).
       Note §6.7 changes the priority here: at S=20 with b ≲ 0.01 the trigger already
       fires at β=0.2, so re-tuning β may be unnecessary once bug 5 is resolved.
-  - [ ] `tuneRdkfBetaGrid` → log-spaced over **[0.5, 3]** at b=0.05. (The β_min=0.41
-        figure that motivated this range came from (\*) and is superseded; the range
-        is still right for b=0.05 because Lemma 2 caps λmin at 0.837 there, §6.7.
-        At b ≲ 0.01 the useful range is instead **[0.1, 0.5]**.)
+  - [ ] `tuneRdkfBetaGrid` → the grid no longer needs searching: **§6.11's (F) gives
+        β_min = λ̄(b) − 1 in closed form** (0.516 at b=0.05, 0.214 at b=0.01, 0.092 at
+        b=0.002), and the measured β sweep at b=0.05 confirms TX breaks free there and
+        the RMSE optimum is at β ≈ 0.5. Sweep **[β_min, 3·β_min]** and nothing below
+        β_min. (The earlier β_min=0.41 figure came from (\*) and was ~20% low.)
   - [ ] `tuneRdkfDeltaGrid` → [0.02, 0.3]; δ=0.1 dominates today, so resolve
         *below* it (current grid's 1 and 2.5 are pure loss).
   - [ ] Report α as measured-non-binding rather than silently fixing it — or
@@ -1133,6 +1425,28 @@ The instrumentation lives in the session scratchpad, not the repo:
 - `verify.m` / `verify2.m` — §6.5 fix verification. Cheap.
 - `metcheck.m` — §6.9 bitwise check of `calcMetropolisWeights` on a symmetric
   graph.
+- `nees.m` — §6.10 first consistency probe (ANEES vs α, plus the per-state
+  empirical-vs-reported variance table). ~10 min. Note its centralized ANEES of
+  6.02 is LFM mismatch, not a defect — `nees2.m` is the one to read.
+- `nees2.m` — §6.10 the decisive one: nominal-vs-LFM ANEES sweep, the
+  λmax((Ω^central)⁻¹Ωⁱ) ≤ 1 double-counting test, and the sensor/relay RMSE split.
+  ~20 min. **Validates the whole instrumentation** (centralized ANEES 0.93 on
+  nominal data); nothing downstream is trustworthy without that line.
+- `lfmsweep.m` — §6.10 sweep of the *data*-generation KL radius with all filters
+  held fixed, scored against five of the paper's Section 6 signatures. ~30 min.
+- `trig.m` — §6.11 side-by-side instrumentation of the RDKF and DKF triggers:
+  which of eq. (9)'s three conditions fails, the generalized spectrum, and
+  λmax(Ω⁻¹M), split by sensor/relay. ~15 min. **The relay rows (M = 0) are the
+  cleanest evidence in the document** — they isolate the deflation from everything
+  else.
+- `feas2.m` — §6.11 condition (F): the λ̄/μ/β_min table, the static
+  λmin(I − θΩ⁻¹)-vs-cond(Ω) table, and the end-to-end β sweep at b = 0.05. The
+  tables are seconds; the β sweep is ~25 min. **This supersedes `feasib.m` and the
+  β_min table in §6.3.**
+- `scale.m` / `scale2.m` — §6.11 the two similarity transforms (diagonal velocity
+  rescaling; iterated whitening W = Ω_ss^{1/2}). ~25 min each. Both carry a
+  built-in correctness check: DKF's TX must be identical in every row, since its
+  trigger is similarity-invariant. If it ever drifts, the transform is wrong.
 - `paperRep.m` / `paperRep2.m` — §6.4 config bisection against the paper's
   Section 6. Both invalid (fusion-weight bug); superseded by `paperRep3.m`.
 - `paperRep3.m` — §6.6, the valid 5-config bisection. Suppresses the
