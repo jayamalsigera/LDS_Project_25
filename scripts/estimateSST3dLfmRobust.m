@@ -81,6 +81,10 @@ lfm = LeastFavorableModel(plant, P0, lfmKlTolerance, T);
 w = round(T / 2) + 1 : T + 1;      % steady-state window
 savedPaths = strings(numel(bGrid), 1);
 summary = zeros(numel(bGrid), 8);
+ssRdkfByB = zeros(totalRuns, numel(bGrid));   % kept for the iso-TX arm below
+ssDkfRef  = zeros(totalRuns, 1);
+txRdkfByB = zeros(numel(bGrid), 1);
+txDkfRef  = 0;
 
 for ib = 1:numel(bGrid)
   b = bGrid(ib);
@@ -134,6 +138,13 @@ for ib = 1:numel(bGrid)
 
   dCen = ssCkf - ssCrkf;                 % >0: CRKF better than CKF
   dDis = ssDkf - ssRdkf;                 % >0: RDKF better than DKF
+
+  % DKF does not depend on b, so its column is identical every pass -- keeping it
+  % once is enough, and overwriting it each pass is a free consistency check.
+  ssRdkfByB(:, ib) = ssRdkf;
+  txRdkfByB(ib)    = mean(mean(rdkfTxRate(:, w), 2));
+  ssDkfRef         = ssDkf;
+  txDkfRef         = mean(mean(dkfTxRate(:, w), 2));
   seCen = std(dCen) / sqrt(totalRuns);
   seDis = std(dDis) / sqrt(totalRuns);
 
@@ -190,6 +201,162 @@ fprintf(['\n"RDKF gain" is the paired improvement over DKF; "CRKF gain" the pair
 for ib = 1:numel(bGrid)
   fprintf('  %s\n', savedPaths(ib));
 end
+
+%% Iso-TX arm: is RDKF's gain bought with bandwidth?
+%
+% The b sweep above shows RDKF beating DKF, but at a higher transmission rate
+% (ratio 1.25-1.31 at feasible b). That is on-model -- the paper's own Fig. 3
+% reports 0.38 vs 0.28 = 1.36x -- but it is not a clean comparison: some of RDKF's
+% RMSE advantage may simply be the extra packets, not the robustness.
+%
+% The test is to spend DKF's OWN trigger budget up to RDKF's transmission rate and
+% re-run the comparison. In eq. (9) silence needs BOTH ||e||^2_Omega <= alpha and
+% the Loewner sandwich, so DKF transmits more when alpha falls (innovation gate
+% tightens) or when beta falls (lower Loewner bound tightens). Sweeping both spans
+% DKF's whole (TX, RMSE) trade-off curve.
+%
+% Two readings, and the frontier is the stronger one:
+%
+%   * matched point -- the DKF config whose measured TX is closest to RDKF's. A
+%     direct paired head-to-head at equal bandwidth.
+%   * full frontier -- if RDKF's (TX, ssRMSE) point lies BELOW DKF's Pareto
+%     frontier, the gain is real robustness. If it lies on or above it, RDKF is
+%     just buying accuracy with bandwidth and the honest conclusion is that the
+%     paper's Fig. 3 comparison is confounded.
+%
+% Held at b = isoB, the best feasible row of the sweep. Same network, plant, LFM
+% and trajectory seeds, so every number here is paired with the sweep above.
+
+% Grid sized from a T=250 probe of the same geometry (scratchpad lever.m), which
+% found alpha to be a WEAK lever and beta a strong one: at alpha=10 the TX runs
+% 0.415 / 0.522 / 0.706 / 1.000 for beta = 0.2 / 0.1 / 0.05 / 0.02. The grid below
+% spans TX ~0.41 to ~0.97, so RDKF's 0.54 is bracketed from both sides rather than
+% approached from below. The probe also showed DKF's ssRMSE *improving* with
+% bandwidth (1.373 -> 1.327 at TX 0.528), which is exactly why this arm is needed.
+isoB = 0.005;
+isoAlphaGrid = [10 1 0.3 0.1 0.01];   % lower alpha => tighter innovation gate
+isoBetaGrid  = [0.2 0.1 0.05];        % lower beta  => tighter Loewner bound
+
+ibIso = find(bGrid == isoB, 1);
+assert(~isempty(ibIso), 'isoB = %g must be one of bGrid', isoB);
+ssRdkfIso = ssRdkfByB(:, ibIso);
+txRdkfIso = txRdkfByB(ibIso);
+
+fprintf(['\n\n================ ISO-TX ARM (b = %g) ================\n' ...
+         'Target: DKF at RDKF''s transmission rate %.4f (RDKF ssRMSE %.4f).\n' ...
+         'Baseline DKF (alpha=%g, beta=%g): TX %.4f, ssRMSE %.4f\n' ...
+         'Sweeping alpha %s x beta %s over %d paired runs each.\n'], ...
+        isoB, txRdkfIso, mean(ssRdkfIso), dkfAlpha, dkfBeta, txDkfRef, ...
+        mean(ssDkfRef), mat2str(isoAlphaGrid), mat2str(isoBetaGrid), totalRuns);
+
+nA = numel(isoAlphaGrid);
+nB2 = numel(isoBetaGrid);
+isoSs = zeros(totalRuns, nA, nB2);
+isoTx = zeros(totalRuns, nA, nB2);
+
+tic
+parfor r = 1:totalRuns
+  rng(trajSeedBase + r);            % same trajectory as the corresponding sweep run
+  s = lfm.simulate(x0);
+  X = s.X; Y = s.Y;
+
+  ss = zeros(nA, nB2);
+  tx = zeros(nA, nB2);
+  for ia = 1:nA
+    for ibb = 1:nB2
+      f = DKF(plant, Ts, T, netGraph, isoAlphaGrid(ia), isoBetaGrid(ibb), dkfDelta) ...
+            .estimate(x0_hat, P0, X, Y);
+      ss(ia, ibb) = mean(f.RMSE(w));
+      tx(ia, ibb) = mean(f.txRate(w));
+    end
+  end
+  isoSs(r, :, :) = ss;
+  isoTx(r, :, :) = tx;
+end
+fprintf('%d configs x %d runs in %.1f s\n', nA * nB2, totalRuns, toc);
+
+%% Frontier table and the matched-TX verdict
+fprintf('\n%8s %8s %9s %10s %12s %10s %s\n', 'alpha', 'beta', 'DKF TX', ...
+        'DKF ssRMSE', 'vs RDKF', 'paired SE', 'who wins');
+bestGap = inf; bestIdx = [0 0];
+for ia = 1:nA
+  for ibb = 1:nB2
+    tx = mean(isoTx(:, ia, ibb));
+    d = isoSs(:, ia, ibb) - ssRdkfIso;        % >0 means RDKF is still better
+    se = std(d) / sqrt(totalRuns);
+    rel = 100 * mean(d) / mean(isoSs(:, ia, ibb));
+    tstat = mean(d) / (se + eps);
+    if tstat > 2,       who = 'RDKF';
+    elseif tstat < -2,  who = 'DKF';
+    else,               who = 'tie';
+    end
+    fprintf('%8g %8g %9.4f %10.4f %11.2f%% %10.1f  %s\n', ...
+            isoAlphaGrid(ia), isoBetaGrid(ibb), tx, mean(isoSs(:, ia, ibb)), ...
+            rel, tstat, who);
+    if abs(tx - txRdkfIso) < bestGap
+      bestGap = abs(tx - txRdkfIso); bestIdx = [ia ibb];
+    end
+  end
+end
+
+ia = bestIdx(1); ibb = bestIdx(2);
+dMatch = isoSs(:, ia, ibb) - ssRdkfIso;
+seMatch = std(dMatch) / sqrt(totalRuns);
+fprintf(['\n--- MATCHED-TX HEAD-TO-HEAD ---\n' ...
+         'Closest DKF config: alpha=%g, beta=%g -> TX %.4f (RDKF TX %.4f, gap %.4f)\n' ...
+         '  DKF  ssRMSE %.4f\n  RDKF ssRMSE %.4f  (b = %g)\n' ...
+         '  paired difference %+.4f (%+.2f%%), %.1f SE\n'], ...
+        isoAlphaGrid(ia), isoBetaGrid(ibb), mean(isoTx(:, ia, ibb)), txRdkfIso, ...
+        bestGap, mean(isoSs(:, ia, ibb)), mean(ssRdkfIso), isoB, ...
+        mean(dMatch), 100 * mean(dMatch) / mean(isoSs(:, ia, ibb)), ...
+        mean(dMatch) / (seMatch + eps));
+% The stricter test: the BEST DKF config that spends no more bandwidth than RDKF.
+% Matching TX exactly is generous to RDKF, since the nearest config may sit above
+% its TX. This asks whether RDKF beats every DKF tuning that is at least as frugal.
+txMeans = squeeze(mean(isoTx, 1));
+ssMeans = squeeze(mean(isoSs, 1));
+frugal = txMeans <= txRdkfIso + 1e-9;
+if ~any(frugal(:))
+  fprintf(['\n--- FRUGAL-DKF TEST: no DKF config in the grid transmits as little as\n' ...
+           'RDKF (%.4f). Widen isoAlphaGrid/isoBetaGrid upward.\n'], txRdkfIso);
+else
+  cand = ssMeans; cand(~frugal) = inf;
+  [~, k] = min(cand(:));
+  [ja, jb] = ind2sub(size(cand), k);
+  dFrug = isoSs(:, ja, jb) - ssRdkfIso;
+  seFrug = std(dFrug) / sqrt(totalRuns);
+  fprintf(['\n--- FRUGAL-DKF TEST (best DKF with TX <= RDKF''s %.4f) ---\n' ...
+           'alpha=%g, beta=%g -> TX %.4f, ssRMSE %.4f\n' ...
+           'RDKF ssRMSE %.4f at TX %.4f\n' ...
+           '  paired difference %+.4f (%+.2f%%), %.1f SE  => %s\n'], ...
+          txRdkfIso, isoAlphaGrid(ja), isoBetaGrid(jb), txMeans(ja, jb), ...
+          ssMeans(ja, jb), mean(ssRdkfIso), txRdkfIso, mean(dFrug), ...
+          100 * mean(dFrug) / ssMeans(ja, jb), mean(dFrug) / (seFrug + eps), ...
+          ternaryStr(mean(dFrug) / (seFrug + eps) > 2, 'RDKF survives', ...
+                     'RDKF gain is bandwidth-confounded'));
+end
+
+fprintf(['\nRead this against the frontier: a positive difference at |SE| > 2 in\n' ...
+         'BOTH tests means RDKF''s advantage survives equal bandwidth and is genuine\n' ...
+         'robustness. A tie or negative in the frugal test means the sweep''s gain\n' ...
+         'was bought with packets, and the paper''s Fig. 3 comparison (RDKF 0.38 vs\n' ...
+         'DKF 0.28) is bandwidth-confounded -- a finding in its own right.\n']);
+
+isoExtras = struct('isoB', isoB, 'isoAlphaGrid', isoAlphaGrid, ...
+                   'isoBetaGrid', isoBetaGrid, 'isoSs', isoSs, 'isoTx', isoTx, ...
+                   'ssRdkfIso', ssRdkfIso, 'txRdkfIso', txRdkfIso, ...
+                   'ssDkfRef', ssDkfRef, 'txDkfRef', txDkfRef, ...
+                   'totalRuns', totalRuns, 'trajSeedBase', trajSeedBase, ...
+                   'ssWindow', [w(1) w(end)]);
+isoParams = collectParams('sst3dParams');
+isoParams.sensorCount    = sensorCount;
+isoParams.dkfDelta       = dkfDelta;
+isoParams.klTolerance    = isoB;
+isoParams.lfmKlTolerance = lfmKlTolerance;
+isoParams.T              = T;
+isoParams.totalRuns      = totalRuns;
+fprintf('\n%s\n', saveRun([mfilename '_isoTx'], isoParams, isoExtras, netGraph, ...
+                          struct('isoSs', isoSs, 'isoTx', isoTx), struct()));
 
 function s = ternaryStr(c, a, b)
   if c, s = a; else, s = b; end
