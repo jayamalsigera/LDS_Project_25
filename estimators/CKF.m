@@ -85,22 +85,5 @@ classdef CKF
       Omega_pred = P_pred \ eye(self.n);
       q_pred = Omega_pred * x_pred;
     end
-
-    %% Plotting estimated trajectory
-    function plotTrajectory(self, X)
-      % TODO: Would be cool if we could plot P(t) somehow
-      % TODO: Restrict axis to ranges of X
-
-      figure
-      plot(self.x_hat(3, :), self.x_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title("CKF Estimated Trajectory")
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"CKF", "Actual Model"})
-      grid()
-    end
   end
 end

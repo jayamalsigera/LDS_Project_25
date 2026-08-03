@@ -4,9 +4,6 @@ function plotRMSEvsTXrate(path)
 % Works for the nominal-plant script (estimateSST3d) and its least-favorable
 % model counterpart (estimateSST3dLfm); the LFM branch is taken when
 % runData.samples has a nomSample field.
-%
-% Trajectory figures (which depend on the state layout) live in
-% plotSST3dTrajectories.
 
   runData = loadRun(path);
 

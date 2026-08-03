@@ -118,17 +118,6 @@ classdef SingleTarget3dModel
       end
     end
 
-    %% Plot the trajectory of the states
-    function plotTrajectory(self)
-      figure
-      plot3(self.X(4, :), self.X(5, :), self.X(6, :));
-      title("Simulated Trajectory (State)")
-      xlabel('$p_x$', 'Interpreter', 'latex');
-      ylabel('$p_y$', 'Interpreter', 'latex');
-      zlabel('$p_z$', 'Interpreter', 'latex');
-      grid()
-    end
-
     function plotOutputs(self)
       figure
       t = (0:self.T) * self.Ts;

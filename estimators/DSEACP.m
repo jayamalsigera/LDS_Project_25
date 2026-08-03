@@ -151,23 +151,5 @@ classdef DSEACP
       end
 
     end
-
-    function plotTrajectory(self, X)
-      % TODO: Would be cool if we could plot P(t) somehow
-      % TODO: Restrict axis to ranges of X
-
-      meanX_hat = mean(self.X_hat, 2);
-
-      figure
-      plot(meanX_hat(3, :), meanX_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title(sprintf("DSEA-CP (L=%d) Estimated Trajectory", self.L))
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"DSEA-CP", "Actual Model"})
-      grid()
-    end
   end
 end

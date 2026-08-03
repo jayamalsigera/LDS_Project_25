@@ -266,24 +266,5 @@ classdef SRDKF
         Psi_bar_next(:, :, i) = Psi_i_bar;
       end
     end
-
-    %% Plotting
-    function plotTrajectory(self, X)
-      % TODO: Would be cool if we could plot P(t) somehow
-      % TODO: Restrict axis to ranges of X
-
-      meanX_hat = squeeze(mean(self.X_hat, 2));
-
-      figure
-      plot(meanX_hat(3, :), meanX_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title(sprintf("SRDKF Estimated Trajectory (%s-loop)", self.triggerMode))
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({sprintf('SRDKF-%s', self.triggerMode), "Actual Model"})
-      grid()
-    end
   end
 end
