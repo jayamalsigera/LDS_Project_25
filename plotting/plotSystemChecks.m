@@ -48,9 +48,8 @@ function plotSystemChecks(A, B, C, sensorCount, G, tol)
   nodeIds = zeros(sensorCount, 1);
   sIdx    = 0;
 
-  % Measurement rows per sensor, derived from C rather than assumed: the 2D
-  % model has 2 rows per sensor and the 3D model has 3. Hardcoding 2 sliced the
-  % 3D blocks off by one sensor from sensor 2 onward.
+  % Measurement rows per sensor (3 in this model), derived from C rather than
+  % hardcoded so the slicing cannot drift out of step with the plant.
   senBlock = size(C, 1) / sensorCount;
   assert(senBlock == round(senBlock), ...
          'plotSystemChecks: size(C,1)=%d is not divisible by sensorCount=%d', ...

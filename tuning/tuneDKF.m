@@ -1,7 +1,7 @@
-function tuneDKF(scenario)
+function tuneDKF()
 %% DKF Hyperparameter Tuning (delta x beta grid)
 %
-%   tuneDKF('sst2d')   tuneDKF('sst3d')
+%   tuneDKF()
 %
 % Full-factorial sweep over the DKF event-trigger parameters delta and beta
 % (alpha held fixed), based on the triggering condition from Battistelli et
@@ -14,12 +14,12 @@ function tuneDKF(scenario)
 % beta) corner and extracts the Pareto frontier of the RMSE-vs-TX tradeoff.
 % alpha barely moved the frontier in the OAT run (dominated except when it
 % floods the channel), so it is fixed at tuneDkfAlphaFixed. The grids live in
-% the scenario's params file (sst2dParams / sst3dParams).
+% sst3dParams.m.
 
   rng(42);
 
   %% Fixed parameters
-  P = sstTuneParams(scenario);
+  P = collectParams();
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -33,7 +33,7 @@ function tuneDKF(scenario)
   netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
 
   disp("Simulating target dynamics")
-  plant = sstPlant(P);
+  plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
 
   %% Pre-generate trajectories so all configurations see the same data
   disp("Pre-generating Monte Carlo trajectories")
@@ -87,7 +87,7 @@ function tuneDKF(scenario)
     'alphaFixed', alphaFixed, ...
     'gridAxisCol', struct('name', 'beta',  'values', betaGrid), ...   % reshape columns
     'gridAxisRow', struct('name', 'delta', 'values', deltaGrid));     % reshape rows
-  savedPath = saveRun(sprintf('tuneDKF_%s', scenario), P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
 
   %% Plotting
   disp("Plotting results")

@@ -24,12 +24,12 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
 %   interior, so a single steady-state slice suffices).
 %
 %   Slicing convention matches the estimators (senBlock): sensor node i occupies
-%   a senBlock-row measurement block of plant.C (2 rows in 2D, 3 in 3D), so its
+%   a senBlock-row measurement block of plant.C (3 rows), so its
 %   slice keeps state rows 1:n and that block. Relay (non-sensor) nodes have no
 %   measurement and get the state-only (n) slice (p_i = 0).
 %
 %   Inputs
-%     plant    : SingleTarget2dModel (provides A, C, B, D, n, p, m, T).
+%     plant    : SingleTarget3dModel (provides A, C, B, D, n, p, m, T).
 %     P0       : prior covariance (seeds the LFM forward sweep).
 %     bGlobal  : scalar global KL radius (must be > 0; e.g. lfmKlTolerance).
 %     netGraph : network digraph; netGraph.Nodes.isSensor selects the slice.
@@ -45,9 +45,9 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
   N = numnodes(netGraph);
   isSensor = netGraph.Nodes.isSensor;
 
-  % Measurement rows per sensor (p_i): 2 in the 2D model, 3 in the 3D model.
-  % Derived from the stacked C so the same code serves both; matches the
-  % estimators' senBlock (sensors are the first S nodes, node i owns block i).
+  % Measurement rows per sensor (p_i): 3 in this model. Derived from the stacked
+  % C rather than hardcoded; matches the estimators' senBlock (sensors are the
+  % first S nodes, node i owns block i).
   S = sum(isSensor);
   assert(mod(plant.p, S) == 0, 'computeLocalTolerances:senBlock', ...
     'plant.p (%d) is not divisible by sensor count (%d).', plant.p, S);

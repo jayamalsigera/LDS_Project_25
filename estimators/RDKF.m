@@ -52,9 +52,9 @@ classdef RDKF
 
       self.n = plant.n;
 
-      % Measurement rows per sensor (p_i). Homogeneous across sensors: 2 in the
-      % 2D model, 3 in the 3D model. Derived from the stacked C so the same code
-      % serves both; sensors are the first S nodes, so node i owns block i.
+      % Measurement rows per sensor (p_i). Homogeneous across sensors (3 in this
+      % model), derived from the stacked C rather than hardcoded; sensors are the
+      % first S nodes, so node i owns block i.
       assert(mod(plant.p, self.S) == 0, ...
         'RDKF:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
         plant.p, self.S);

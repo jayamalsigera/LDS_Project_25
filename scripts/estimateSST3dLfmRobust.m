@@ -173,7 +173,7 @@ for ib = 1:numel(bGrid)
 
   % collectParams re-sources sst3dParams, so the overrides must be re-applied or
   % the saved file (and its name) would describe a run that did not happen.
-  params = collectParams('sst3dParams');
+  params = collectParams();
   params.sensorCount   = sensorCount;
   params.dkfDelta      = dkfDelta;
   params.klTolerance   = b;
@@ -348,7 +348,7 @@ isoExtras = struct('isoB', isoB, 'isoAlphaGrid', isoAlphaGrid, ...
                    'ssDkfRef', ssDkfRef, 'txDkfRef', txDkfRef, ...
                    'totalRuns', totalRuns, 'trajSeedBase', trajSeedBase, ...
                    'ssWindow', [w(1) w(end)]);
-isoParams = collectParams('sst3dParams');
+isoParams = collectParams();
 isoParams.sensorCount    = sensorCount;
 isoParams.dkfDelta       = dkfDelta;
 isoParams.klTolerance    = isoB;

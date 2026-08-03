@@ -1,17 +1,17 @@
-function tuneSRDKFClosed(scenario)
+function tuneSRDKFClosed()
 %% SRDKF (closed-loop trigger) Hyperparameter Tuning
 %
-%   tuneSRDKFClosed('sst2d')   tuneSRDKFClosed('sst3d')
+%   tuneSRDKFClosed()
 %
 % Sweeps the error-norm weight scale z, where Z = z * eye(m) and m is the
 % measurement dimension. All other hyperparameters (alpha, beta, delta, KL
-% tolerance) come from the scenario's params file. The z grid lives there
+% tolerance) come from sst3dParams.m. The z grid lives there
 % (tuneSrdkfClosedZGrid).
 
   rng(42);
 
   %% Fixed parameters
-  P = sstTuneParams(scenario);
+  P = collectParams();
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -23,7 +23,8 @@ function tuneSRDKFClosed(scenario)
   netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
 
   disp("Simulating target dynamics")
-  [plant, zDim] = sstPlant(P);   % zDim = measurement dimension m
+  plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
+  zDim  = P.dim;   % measurement rows per sensor (Z is zDim x zDim)
 
   %% Pre-generate trajectories so all configurations see the same data
   disp("Pre-generating Monte Carlo trajectories")
@@ -65,7 +66,7 @@ function tuneSRDKFClosed(scenario)
     'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Closed', ...
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
-  savedPath = saveRun(sprintf('tuneSRDKFClosed_%s', scenario), P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
 
   %% Plotting
   disp("Plotting results")

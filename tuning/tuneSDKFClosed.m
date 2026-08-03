@@ -1,13 +1,12 @@
-function tuneSDKFClosed(scenario)
+function tuneSDKFClosed()
 %% SDKF (closed-loop trigger) Hyperparameter Tuning
 %
-%   tuneSDKFClosed('sst2d')   tuneSDKFClosed('sst3d')
+%   tuneSDKFClosed()
 %
 % Sweeps the stochastic-trigger weight scale z, where Z = z * eye(m) and m
 % is the measurement dimension. Smaller z lowers the transmission
 % probability P(tx) = 1 - exp(-1/2 z'Zz), tracing an RMSE-vs-TX-rate curve.
-% All other hyperparameters (alpha, beta, delta) come from the scenario's
-% params file; in an all-sensor network they are unused, since every node
+% All other hyperparameters (alpha, beta, delta) come from sst3dParams.m; in an all-sensor network they are unused, since every node
 % runs the stochastic trigger rather than the deterministic relay trigger.
 %
 % Saved via saveRun and plotted by plotTuneRun. For a matched-rate
@@ -19,7 +18,7 @@ function tuneSDKFClosed(scenario)
   rng(42);
 
   %% Fixed parameters
-  P = sstTuneParams(scenario);
+  P = collectParams();
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -31,7 +30,8 @@ function tuneSDKFClosed(scenario)
   netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
 
   disp("Simulating target dynamics")
-  [plant, zDim] = sstPlant(P);   % zDim = measurement dimension m
+  plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
+  zDim  = P.dim;   % measurement rows per sensor (Z is zDim x zDim)
 
   %% Pre-generate trajectories so all configurations see the same data
   disp("Pre-generating Monte Carlo trajectories")
@@ -72,7 +72,7 @@ function tuneSDKFClosed(scenario)
     'totalRuns', totalTuneRuns, 'filterName', 'SDKF-Closed', ...
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
-  savedPath = saveRun(sprintf('tuneSDKFClosed_%s', scenario), P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
 
   %% Plotting
   disp("Plotting results")
