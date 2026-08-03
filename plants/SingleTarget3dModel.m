@@ -117,17 +117,5 @@ classdef SingleTarget3dModel
         self.Y(:, t) = self.outputEq(self.X(:, t));
       end
     end
-
-    function plotOutputs(self)
-      figure
-      t = (0:self.T) * self.Ts;
-      subplot(2, 1, 1)
-      plot(t, self.Y(1:3, :)');
-      title("Simulated Output of Sensor 1")
-      subplot(2, 1, 2)
-      plot(t, self.Y(end-2:end, :)');
-      title("Simulated Output of Last Sensor")
-      xlabel('Time (s)');
-    end
   end
 end
