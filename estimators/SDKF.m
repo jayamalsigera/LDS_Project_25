@@ -64,7 +64,7 @@ classdef SDKF
 
       self.n = plant.n;
 
-      % Measurement rows per sensor (p_i): 2 in 2D, 3 in 3D. See RDKF.
+      % Measurement rows per sensor (p_i); derived from C. See RDKF.
       assert(mod(plant.p, self.S) == 0, ...
         'SDKF:senBlock', 'plant.p (%d) is not divisible by sensor count (%d).', ...
         plant.p, self.S);

@@ -1,8 +1,8 @@
 function plotSST3dTrajectories(path)
 %PLOTSST3DTRAJECTORIES  Plot truth and estimated 3D trajectories for a saved run.
 %
-% 3D counterpart of plotSST2dTrajectories: position lives in state rows 4:6
-% ([px py pz]), so trajectories are drawn with plot3. Works for both the
+% Position lives in state rows 4:6 ([px py pz]), so trajectories are drawn with
+% plot3. Works for both the
 % nominal-plant script (estimateSST3d) and the least-favorable model script
 % (estimateSST3dLfm); the LFM branch is taken when samples has a nomSample field.
 

@@ -1,18 +1,18 @@
-function tuneSRDKFOpenbLfm(scenario)
+function tuneSRDKFOpenbLfm()
 %% SRDKF (open-loop trigger) robust-tolerance (b) tuning on LEAST-FAVORABLE data
 %
-%   tuneSRDKFOpenbLfm('sst2d')   tuneSRDKFOpenbLfm('sst3d')
+%   tuneSRDKFOpenbLfm()
 %
 % Sweeps the KL-divergence tolerance b (a.k.a. klTolerance) -- the robust
 % layer's knob that sizes the per-node deflation Psi = Omega_pred - theta*I --
 % with the stochastic-trigger weight (Z = errorNormWeightsOpen) and the other
-% trigger knobs held at the scenario's params baseline. This isolates the
+% trigger knobs held at the sst3dParams.m baseline. This isolates the
 % robustness knob that tuneSRDKFOpen leaves fixed.
 %
 % Two differences from tuneSRDKFOpen (which sweeps z):
 %   * the swept axis is b (grid tuneBGrid), not the error-norm weight scale z;
 %   * trajectories are drawn from the LEAST-FAVORABLE model (as in
-%     estimateSST2dLfm.m), not the nominal plant -- robustness only earns its
+%     estimateSST3dLfm.m), not the nominal plant -- robustness only earns its
 %     keep under model mismatch, so on nominal data the optimal b is ~0.
 %
 % Headless/server run: NO plotting. Move the saved .mat off the cluster and
@@ -21,7 +21,7 @@ function tuneSRDKFOpenbLfm(scenario)
   rng(42);
 
   %% Fixed parameters
-  P = sstTuneParams(scenario);
+  P = collectParams();
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -35,7 +35,7 @@ function tuneSRDKFOpenbLfm(scenario)
   netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
 
   disp("Building plant and least-favorable model")
-  plant = sstPlant(P);
+  plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
   lfm   = LeastFavorableModel(plant, P.P0, P.lfmKlTolerance, T);
 
   %% Pre-generate LFM trajectories so all configurations see the same data
@@ -84,6 +84,6 @@ function tuneSRDKFOpenbLfm(scenario)
   extras = struct( ...
     'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Open', ...
     'bGrid', bGrid, 'bases', struct('b', NaN));
-  savedPath = saveRun(sprintf('tuneSRDKFOpenbLfm_%s', scenario), P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
   fprintf('Plot locally with: plotTuneRun(''%s'')\n', savedPath);
 end

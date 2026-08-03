@@ -209,7 +209,7 @@ samples = struct( ...
   'rdkflocSample', rdkflocSample, ...
   'srdkflocClosedSample', srdkflocClosedSample, 'srdkflocOpenSample', srdkflocOpenSample);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
-savedPath = saveRun(mfilename, collectParams('sst3dParams'), extras, netGraph, results, samples);
+savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
 
 %% Plotting
 plottingEnabled = false;  % enable for interactive runs; off for headless/batch

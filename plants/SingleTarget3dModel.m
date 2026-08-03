@@ -4,13 +4,13 @@
 % constant-velocity (triple-integrator) target observed by a network of sensors,
 % each of which measures 2 of the 3 position coordinates.
 %
-% State ordering keeps velocities first, then positions (mirroring the 2D
-% model): x = [vx vy vz px py pz]', n = 6.
+% State ordering keeps velocities first, then positions:
+% x = [vx vy vz px py pz]', n = 6.
 %
 % Parameters:
 % - Ts - Sampling Period
 % - S  - Number of Sensors
-% - k  - Measurement-noise scale (knob; R^i = sqrt(k) * P_i R0 P_i')
+% - noiseStd - Measurement-noise scale k (knob; R^i = sqrt(k) * P_i R0 P_i')
 % - T  - Simulation Steps
 classdef SingleTarget3dModel
   properties
@@ -32,18 +32,19 @@ classdef SingleTarget3dModel
     Y
   end
   methods
-    function self = SingleTarget3dModel(Ts, S, k, T)
-      if nargin < 3 || isempty(k)
-        k = 1;  % Default measurement-noise scale
+    function self = SingleTarget3dModel(Ts, S, noiseStd, T)
+      if nargin < 3 || isempty(noiseStd)
+        noiseStd = 1;  % Default measurement-noise scale
       end
       self.Ts = Ts;
 
-      % Constant-velocity (triple-integrator) dynamics. The paper uses the
-      % explicit Euler form A = I + Ts*Phi (not exact c2d):
+      % Constant-velocity (triple-integrator) dynamics.
       %   d/dt [vx vy vz] = 0
       %   d/dt [px py pz] = [vx vy vz]
       Phi = [zeros(3, 3), zeros(3, 3);
              eye(3),      zeros(3, 3)];
+
+      % Explicit Euler form A = I + Ts*Phi
       self.A = eye(6) + Ts * Phi;
 
       % Process noise: w_t ~ N(0, I_6), B = sqrt(0.001) I_6 => Q = B B' = 0.001 I.
@@ -54,23 +55,10 @@ classdef SingleTarget3dModel
 
       % Measurement model: each sensor measures 2 of the 3 position coordinates,
       % laid out as a 3-row block with one identically-zero row (p_i = 3).
-      %
-      % The paper says each sensor measures "either two horizontal dimensions or
-      % a combination of one horizontal dimension and the vertical dimension".
-      % With x, y horizontal and z vertical, the second category has TWO
-      % realizations, so the design has THREE types -- all three coordinate
-      % pairs. The two matrices printed in the paper (diag(1,0,1), diag(0,1,1))
-      % are one exemplar from each verbal category, not the complete set.
-      %   horizontal-horizontal:  measures px, py
-      %   horizontal-vertical #1: measures py, pz
-      %   horizontal-vertical #2: measures px, pz
-      % Sensors are split as evenly as possible over the three types, in
-      % contiguous blocks (analogous to the 2D C_i_a / C_i_b split). This yields
-      % balanced per-coordinate coverage; dropping one type would leave one
-      % coordinate observed by twice as many sensors as the other two.
       C_types = {[zeros(3, 3), diag([1 1 0])], ...   % px, py  (row 3 zero)
                  [zeros(3, 3), diag([0 1 1])], ...   % py, pz  (row 1 zero)
                  [zeros(3, 3), diag([1 0 1])]};      % px, pz  (row 2 zero)
+
       nPerType = floor(S / 3) * ones(1, 3);
       nPerType(1:(S - sum(nPerType))) = nPerType(1:(S - sum(nPerType))) + 1;
       Cblocks = arrayfun(@(t) repmat(C_types{t}, nPerType(t), 1), 1:3, ...
@@ -94,7 +82,7 @@ classdef SingleTarget3dModel
         Pi = Pi(randperm(3), :);
         self.Perm(:, :, i) = Pi;
 
-        Ri = sqrt(k) * (Pi * R0 * Pi');
+        Ri = sqrt(noiseStd) * (Pi * R0 * Pi');
         Rblocks{i} = Ri;
         Dblocks{i} = chol(Ri, 'lower');  % D_i D_i' = R_i
       end

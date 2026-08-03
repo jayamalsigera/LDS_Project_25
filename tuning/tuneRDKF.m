@@ -1,7 +1,7 @@
-function tuneRDKF(scenario)
+function tuneRDKF()
 %% RDKF Hyperparameter Tuning (delta x beta grid)
 %
-%   tuneRDKF('sst2d')   tuneRDKF('sst3d')
+%   tuneRDKF()
 %
 % Full-factorial sweep over the RDKF event-trigger parameters delta and beta
 % (alpha and the KL tolerance b held fixed), based on the triggering
@@ -16,12 +16,12 @@ function tuneRDKF(scenario)
 % and extracts the Pareto frontier of the RMSE-vs-TX tradeoff. alpha and the
 % robust-prediction tolerance b are fixed; b in particular is the robust
 % layer's knob, not a trigger knob, and is left at its baseline here. Grids
-% live in the scenario's params file (sst2dParams / sst3dParams).
+% live in sst3dParams.m.
 
   rng(42);
 
   %% Fixed parameters
-  P = sstTuneParams(scenario);
+  P = collectParams();
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -36,7 +36,7 @@ function tuneRDKF(scenario)
   netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
 
   disp("Simulating target dynamics")
-  plant = sstPlant(P);
+  plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
 
   %% Pre-generate trajectories so all configurations see the same data
   disp("Pre-generating Monte Carlo trajectories")
@@ -90,7 +90,7 @@ function tuneRDKF(scenario)
     'alphaFixed', alphaFixed, 'bFixed', bFixed, ...
     'gridAxisCol', struct('name', 'beta',  'values', betaGrid), ...   % reshape columns
     'gridAxisRow', struct('name', 'delta', 'values', deltaGrid));     % reshape rows
-  savedPath = saveRun(sprintf('tuneRDKF_%s', scenario), P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
 
   %% Plotting
   disp("Plotting results")

@@ -1,13 +1,12 @@
 %% Shared parameters for 3D Single-Target Tracking scripts
 %
-% Loaded by estimateSST3d.m and estimateSST3dLfm.m so they agree on plant,
-% network, and estimator settings. Mirrors sst2dParams.m; see the 3D extension
-% plan (sst3d-extension-plan.md) for the rationale behind the 3D-specific values.
+% Loaded by estimateSST3d.m and estimateSST3dLfm.m (and via collectParams by the
+% tune* functions) so they agree on plant, network, and estimator settings.
 % Scripts that need script-specific overrides (e.g. totalRuns) set them after
 % sourcing this file.
 
 %% Plant
-dim = 3;                  % Spatial dimension (drives plant ctor + measurement dim m in sstPlant)
+dim = 3;                  % Spatial dimension = measurement rows per sensor
 T = 1000;                 % Number of simulation steps (paper uses 250; knob)
 Ts = 0.1;                 % Sampling period
 noiseScale = 1;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
@@ -56,10 +55,9 @@ totalRuns = 200;
 totalTuneRuns = 50;
 
 %% Tuning grids (consumed by the tune* functions; see tuning/)
-% Mirrors the sst2dParams tuning section. Grids are filter-specific (DKF vs
-% RDKF (beta, delta) ranges differ; SDKF and SRDKF z scales differ by orders of
-% magnitude). Starting points for 3D -- the (beta, delta) grids bracket the 3D
-% baseline (dkfAlpha = 10, dkfDelta = 0.5); refine after the first sweeps.
+% Grids are filter-specific (DKF vs RDKF (beta, delta) ranges differ; SDKF and
+% SRDKF z scales differ by orders of magnitude). The (beta, delta) grids bracket
+% the baseline (dkfAlpha = 10, dkfDelta = 0.5); refine after the first sweeps.
 
 % DKF event-trigger grid (beta x delta; alpha fixed). See tuneDKF.
 tuneDkfBetaGrid   = [0.1, 0.2, 0.5, 0.9];
@@ -75,12 +73,10 @@ tuneRdkfBFixed     = 0.05;
 % Stochastic-trigger weight scale z (Z = z * eye(m)). The three z-sweeps need
 % grids that differ by orders of magnitude because the trigger fires with
 % probability 1 - exp(-1/2 z'Zz) evaluated on very different quantities:
-% closed-loop weights the innovation y - C x_bar (O(10) in 3D), open-loop
-% weights the raw measurement y (O(1e3), dominated by position). The 3D
-% innovation is ~40x smaller than 2D, so the closed grids are scaled up
-% accordingly relative to sst2d. Grids picked to span TX ~2%-95% with the RMSE
-% knee resolved; SRDKF-Closed starts at 0.02 because the robust layer
-% destabilises when transmissions are starved below that.
+% closed-loop weights the innovation y - C x_bar (O(10)), open-loop weights the
+% raw measurement y (O(1e3), dominated by position). Grids picked to span
+% TX ~2%-95% with the RMSE knee resolved; SRDKF-Closed starts at 0.02 because
+% the robust layer destabilises when transmissions are starved below that.
 tuneSdkfZGrid       = [3e-3, 8e-3, 2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2];  % SDKF closed
 tuneSrdkfClosedZGrid = [2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2, 2.5, 5];      % SRDKF closed
 tuneSrdkfOpenZGrid   = [1e-8, 3e-8, 6e-8, 1e-7, 2e-7, 4e-7, 7e-7, 1.5e-6, 3e-6]; % SRDKF open (raw-measurement space)

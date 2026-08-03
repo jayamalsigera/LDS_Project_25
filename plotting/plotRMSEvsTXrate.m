@@ -1,13 +1,12 @@
 function plotRMSEvsTXrate(path)
 %PLOTRMSEVSTXRATE  Re-create RMSE / TX-rate figures for a saved estimateSST run.
 %
-% Dimension-agnostic: works for the 2D and 3D nominal-plant scripts
-% (estimateSST2d / estimateSST3d) and their least-favorable model counterparts
-% (estimateSST2dLfm / estimateSST3dLfm); the LFM branch is taken when
+% Works for the nominal-plant script (estimateSST3d) and its least-favorable
+% model counterpart (estimateSST3dLfm); the LFM branch is taken when
 % runData.samples has a nomSample field.
 %
 % Trajectory figures (which depend on the state layout) live in
-% plotSST2dTrajectories / plotSST3dTrajectories.
+% plotSST3dTrajectories.
 
   runData = loadRun(path);
 
