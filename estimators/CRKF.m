@@ -85,19 +85,5 @@ classdef CRKF
       Omega_upd = Omega_pred + self.C' * (self.R \ self.C);
       q_upd     = q_pred     + self.C' * (self.R \ y);
     end
-
-    %% Plotting
-    function plotTrajectory(self, X)
-      figure
-      plot(self.x_hat(3, :), self.x_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title('CRKF Estimated Trajectory')
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({'CRKF', 'Actual Model'})
-      grid()
-    end
   end
 end

@@ -238,21 +238,5 @@ classdef SDKF
       foo   = (Omega + self.A' * invQA) \ eye(self.n);
       newOmega = invQ - invQA * foo * invQA';
     end
-
-    %% Plotting
-    function plotTrajectory(self, X)
-      meanX_hat = squeeze(mean(self.X_hat, 2));
-
-      figure
-      plot(meanX_hat(3, :), meanX_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title(sprintf('SDKF Estimated Trajectory (%s-loop)', self.triggerMode))
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({sprintf('SDKF-%s', self.triggerMode), 'Actual Model'})
-      grid()
-    end
   end
 end

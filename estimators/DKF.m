@@ -219,24 +219,5 @@ classdef DKF
 
       newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
     end
-
-    %% Plotting
-    function plotTrajectory(self, X)
-      % TODO: Would be cool if we could plot P(t) somehow
-      % TODO: Restrict axis to ranges of X
-
-      meanX_hat = mean(self.X_hat, 2);
-
-      figure
-      plot(meanX_hat(3, :), meanX_hat(4, :));
-      hold on
-      plot(X(3, :), X(4, :));
-      hold off
-      title("DKF Estimated Trajectory")
-      xlabel('$\hat{p}_x$', 'Interpreter', 'latex');
-      ylabel('$\hat{p}_y$', 'Interpreter', 'latex');
-      legend({"DKF", "Actual Model"})
-      grid()
-    end
   end
 end
