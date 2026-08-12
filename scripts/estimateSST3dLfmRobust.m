@@ -67,11 +67,7 @@ plant = SingleTarget3dModel(Ts, sensorCount, noiseScale, T);
 assertStabilizable(plant.A, plant.B);
 assertDetectable(plant.A, plant.C);
 
-senBlock = plant.p / sensorCount;
-for i = 1:sensorCount
-  idx = senBlock * (i - 1) + (1:senBlock);
-  assertLocallyObservable(plant.A, plant.C(idx, :), i);
-end
+assertLocallyObservable(plant.A, plant.C, sensorCount);
 
 %% Least-favorable data generator (independent of the filters' b)
 disp("Precomputing least-favorable model")

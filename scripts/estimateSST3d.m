@@ -25,11 +25,7 @@ assertDetectable(plant.A, plant.C);
 
 %% System checks (stabilizability, detectability, local observability)
 disp("Checking local observability of sensor nodes")
-senBlock = plant.p / sensorCount;   % measurement rows per sensor (= 3 in 3D)
-for i = 1:sensorCount
-  idx = senBlock * (i - 1) + (1:senBlock);
-  assertLocallyObservable(plant.A, plant.C(idx, :), i);
-end
+assertLocallyObservable(plant.A, plant.C, sensorCount);
 plotSystemChecks(plant.A, plant.B, plant.C, sensorCount, netGraph);
 
 %% Estimators
