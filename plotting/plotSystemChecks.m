@@ -1,6 +1,8 @@
-function plotSystemChecks(A, B, C, sensorCount, G, tol)
-% Plot PBH stabilizability, PBH detectability, and per-sensor local
-% observability in a single figure.
+%% Plot PBH stabilizability, PBH detectability, and per-sensor local
+%  observability of the 3D Single-Target Tracking plant in a single figure.
+%
+% Standalone script: it builds the network and plant from sst3dParams, so it
+% runs on its own without the estimateSST3d* scripts.
 %
 % Layout:
 %   Top (full width) — heatmap: which state dimensions each sensor can
@@ -9,18 +11,23 @@ function plotSystemChecks(A, B, C, sensorCount, G, tol)
 %                       eigenvalue; must equal n for each λ
 %   Bottom-right     — detectability PBH rank at each UNIQUE unstable
 %                       eigenvalue; must equal n for each λ
-%
-% Parameters:
-%   A           - n x n state transition matrix
-%   B           - n x m input matrix
-%   C           - p x n stacked output matrix (all sensors, row-ordered)
-%   sensorCount - number of sensor nodes
-%   G           - network digraph (node table must have isSensor column)
-%   tol         - (optional) rank / null-space tolerance, default 1e-9
 
-  if nargin < 6
-    tol = 1e-9;
-  end
+  clear;
+  close all;
+  clc;
+  rng(42);
+
+  %% Plant and network from the shared parameters
+  sst3dParams;
+
+  G     = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+  plant = SingleTarget3dModel(Ts, sensorCount, noiseScale, T);
+
+  A = plant.A;
+  B = plant.B;
+  C = plant.C;
+
+  tol = 1e-9;   % rank / null-space tolerance
 
   n = size(A, 1);
 
@@ -125,7 +132,6 @@ function plotSystemChecks(A, B, C, sensorCount, G, tol)
   xticklabels(eigLabels(uEigs, mults))
   ylim([0, n + 1])
   grid on
-end
 
 %% ---- helpers -------------------------------------------------------
 

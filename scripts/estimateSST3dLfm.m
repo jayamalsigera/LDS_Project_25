@@ -30,7 +30,6 @@ assertDetectable(plant.A, plant.C);
 %% System checks (stabilizability, detectability, local observability)
 disp("Checking local observability of sensor nodes")
 assertLocallyObservable(plant.A, plant.C, sensorCount);
-plotSystemChecks(plant.A, plant.B, plant.C, sensorCount, netGraph);
 
 %% Estimators
 disp("Initializing estimators")
