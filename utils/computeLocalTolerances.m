@@ -1,5 +1,4 @@
-function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
-%COMPUTELOCALTOLERANCES  Per-node KL tolerances b^i for RDKFLOC / SRDKFLOC.
+%% Per-node KL tolerances b^i for RDKFLOC / SRDKFLOC.
 %
 %   bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph) returns an
 %   N-by-1 vector whose i-th entry is node i's local KL tolerance b^i, computed
@@ -40,6 +39,8 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
 %
 %   See also LeastFavorableModel, RDKFLOC, SRDKFLOC.
 
+%
+function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
   n = plant.n;
   T = plant.T;
   N = numnodes(netGraph);

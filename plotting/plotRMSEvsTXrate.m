@@ -1,9 +1,9 @@
-function plotRMSEvsTXrate(path)
-%PLOTRMSEVSTXRATE  Re-create RMSE / TX-rate figures for a saved estimateSST run.
+%% Re-create RMSE / TX-rate figures for a saved estimateSST run.
 %
 % Works for the nominal-plant script (estimateSST3d) and its least-favorable
 % model counterpart (estimateSST3dLfm); the LFM branch is taken when
 % runData.samples has a nomSample field.
+function plotRMSEvsTXrate(path)
 
   runData = loadRun(path);
 

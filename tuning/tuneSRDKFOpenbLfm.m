@@ -1,4 +1,3 @@
-function tuneSRDKFOpenbLfm()
 %% SRDKF (open-loop trigger) robust-tolerance (b) tuning on LEAST-FAVORABLE data
 %
 %   tuneSRDKFOpenbLfm()
@@ -17,6 +16,8 @@ function tuneSRDKFOpenbLfm()
 %
 % Headless/server run: NO plotting. Move the saved .mat off the cluster and
 % plot locally with plotTuneRun(savedPath).
+%
+function tuneSRDKFOpenbLfm()
 
   rng(42);
 

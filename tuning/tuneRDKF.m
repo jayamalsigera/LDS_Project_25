@@ -1,4 +1,3 @@
-function tuneRDKF()
 %% RDKF Hyperparameter Tuning (delta x beta grid)
 %
 %   tuneRDKF()
@@ -17,6 +16,8 @@ function tuneRDKF()
 % robust-prediction tolerance b are fixed; b in particular is the robust
 % layer's knob, not a trigger knob, and is left at its baseline here. Grids
 % live in sst3dParams.m.
+%
+function tuneRDKF()
 
   rng(42);
 

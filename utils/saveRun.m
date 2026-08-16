@@ -1,9 +1,10 @@
-function savedPath = saveRun(scriptName, params, extras, netGraph, results, samples)
-%SAVERUN  Persist a Monte Carlo run to results/<file>.mat.
+%% Persist a Monte Carlo run to results/<file>.mat.
 %
 % Builds a filename that encodes the most commonly varied parameters
 % (T, nodeCount, sensorCount, klTolerance, totalRuns) plus a timestamp,
 % and stores the full parameter set inside the .mat alongside the results.
+%
+function savedPath = saveRun(scriptName, params, extras, netGraph, results, samples)
 
   ts = char(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
   totalRuns = extras.totalRuns;

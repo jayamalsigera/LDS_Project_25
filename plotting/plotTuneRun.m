@@ -1,5 +1,4 @@
-function plotTuneRun(varargin)
-%PLOTTUNERUN  Re-create figures for one or more saved tune* runs.
+%%  Re-create figures for one or more saved tune* runs.
 %
 %   plotTuneRun(path)
 %       For a single run: per-sweep RMSE/TX-vs-time figures plus the
@@ -15,6 +14,8 @@ function plotTuneRun(varargin)
 % parameter. When a run stores steady-state RMSE stats (ssRmseMean /
 % ssRmseStd) the tradeoff uses them with +/- 1 std error bars; otherwise it
 % falls back to the time-averaged mean RMSE with no bars (older runs).
+%
+function plotTuneRun(varargin)
 
   paths = varargin;
   if isempty(paths)

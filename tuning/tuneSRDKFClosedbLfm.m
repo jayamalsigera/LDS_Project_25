@@ -1,4 +1,3 @@
-function tuneSRDKFClosedbLfm()
 %% SRDKF (closed-loop trigger) robust-tolerance (b) tuning on LEAST-FAVORABLE data
 %
 %   tuneSRDKFClosedbLfm()
@@ -17,6 +16,8 @@ function tuneSRDKFClosedbLfm()
 %
 % Headless/server run: NO plotting. Move the saved .mat off the cluster and
 % plot locally with plotTuneRun(savedPath).
+%
+function tuneSRDKFClosedbLfm()
 
   rng(42);
 

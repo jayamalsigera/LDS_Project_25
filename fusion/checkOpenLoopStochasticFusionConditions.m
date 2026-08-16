@@ -1,5 +1,5 @@
-function c = checkOpenLoopStochasticFusionConditions(y, Z)
-% Open-loop stochastic event-triggered transmission criterion.
+%% Open-loop stochastic event-triggered transmission criterion.
+%
 % Based on Han et al. (2015), eq. (8) and (9).
 %
 % The trigger depends only on the current raw measurement y_k — no feedback
@@ -16,6 +16,8 @@ function c = checkOpenLoopStochasticFusionConditions(y, Z)
 %
 % Output:
 %   c  - 1 to transmit, 0 otherwise
+%
+function c = checkOpenLoopStochasticFusionConditions(y, Z)
 
   nu = exp(-1/2 * y' * Z * y);
 

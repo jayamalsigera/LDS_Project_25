@@ -1,4 +1,3 @@
-function tuneSRDKFClosed()
 %% SRDKF (closed-loop trigger) Hyperparameter Tuning
 %
 %   tuneSRDKFClosed()
@@ -7,6 +6,8 @@ function tuneSRDKFClosed()
 % measurement dimension. All other hyperparameters (alpha, beta, delta, KL
 % tolerance) come from sst3dParams.m. The z grid lives there
 % (tuneSrdkfClosedZGrid).
+%
+function tuneSRDKFClosed()
 
   rng(42);
 

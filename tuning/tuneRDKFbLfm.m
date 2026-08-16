@@ -1,4 +1,3 @@
-function tuneRDKFbLfm()
 %% RDKF robust-tolerance (b) tuning on LEAST-FAVORABLE data
 %
 %   tuneRDKFbLfm()
@@ -15,6 +14,8 @@ function tuneRDKFbLfm()
 %
 % Headless/server run: NO plotting. Move the saved .mat off the cluster and
 % plot locally with plotTuneRun(savedPath).
+%
+function tuneRDKFbLfm()
 
   rng(42);
 

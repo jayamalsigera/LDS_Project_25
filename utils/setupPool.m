@@ -1,5 +1,4 @@
-function setupPool()
-%SETUPPOOL  Size the parallel pool to the SLURM CPU allocation (if any).
+%% Size the parallel pool to the SLURM CPU allocation (if any).
 %
 %   Under SLURM the default 'Processes' profile sizes the pool to the node's
 %   physical core count, which can exceed --cpus-per-task and oversubscribe
@@ -7,6 +6,8 @@ function setupPool()
 %   with the number of live workers). When SLURM_CPUS_PER_TASK is set this
 %   starts a pool with exactly that many workers. Off the cluster (variable
 %   unset) it is a no-op and parfor uses the default pool.
+%
+function setupPool()
 
   n = str2double(getenv('SLURM_CPUS_PER_TASK'));
   if isnan(n) || n < 1
