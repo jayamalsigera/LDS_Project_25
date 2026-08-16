@@ -1,4 +1,3 @@
-function tuneSRDKFOpen()
 %% SRDKF (open-loop trigger) Hyperparameter Tuning
 %
 %   tuneSRDKFOpen()
@@ -7,6 +6,8 @@ function tuneSRDKFOpen()
 % trigger uses only the measured output (hence Z is m x m, m the measurement
 % dimension). All other hyperparameters (alpha, beta, delta, KL tolerance)
 % come from sst3dParams.m. The z grid lives there (tuneSrdkfOpenZGrid).
+%
+function tuneSRDKFOpen()
 
   rng(42);
 

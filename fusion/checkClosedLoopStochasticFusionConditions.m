@@ -1,5 +1,5 @@
-function c = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar, Z)
-% Closed-loop stochastic event-triggered transmission criterion.
+%% Closed-loop stochastic event-triggered transmission criterion.
+%
 % Based on Han et al. (2015), eq. (8) and (10).
 %
 % The measurement-space innovation is z_k = y_k - C_i * x_bar, where
@@ -19,6 +19,7 @@ function c = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar, Z)
 %
 % Output:
 %   c     - 1 to transmit, 0 otherwise
+function c = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar, Z)
 
   z = y_i - C_i * x_bar;
   nu = exp(-1/2 * z' * Z * z);

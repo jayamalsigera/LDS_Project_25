@@ -1,6 +1,4 @@
-function [meanRmse, finalRmse, meanTx, ssMean, ssStd, rmseCurves, txCurves] = ...
-    evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T)
-%EVALCONFIGSMC  Monte Carlo evaluation of a set of estimator configs.
+%%  Monte Carlo evaluation of a set of estimator configs.
 %
 %   [...] = evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T)
 %   evaluates every config in CONFIGS against every trajectory in SAMPLES.
@@ -20,6 +18,9 @@ function [meanRmse, finalRmse, meanTx, ssMean, ssStd, rmseCurves, txCurves] = ..
 %   Returns per-config column vectors (meanRmse, finalRmse, meanTx, ssMean,
 %   ssStd) and per-config averaged curves (rmseCurves, txCurves), matching the
 %   arrays the tune* scripts previously built by hand.
+%
+function [meanRmse, finalRmse, meanTx, ssMean, ssStd, rmseCurves, txCurves] = ...
+    evalConfigsMC(makeFilter, configs, samples, x0_hat, P0, T)
 
   setupPool();   % match the pool to the SLURM allocation (no-op off-cluster)
 

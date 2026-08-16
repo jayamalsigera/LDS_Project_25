@@ -1,4 +1,3 @@
-function tuneSDKFClosed()
 %% SDKF (closed-loop trigger) Hyperparameter Tuning
 %
 %   tuneSDKFClosed()
@@ -14,6 +13,8 @@ function tuneSDKFClosed()
 %   plotTuneRun('results/tuneSDKFClosed_...mat', 'results/tuneDKF_...mat')
 % (keep sensorCount = nodeCount so the stochastic trigger governs every node,
 % otherwise the deterministic relay trigger dominates).
+%
+function tuneSDKFClosed()
 
   rng(42);
 

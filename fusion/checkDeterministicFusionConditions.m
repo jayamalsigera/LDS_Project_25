@@ -1,5 +1,5 @@
-function c = checkDeterministicFusionConditions(X, x_bar, Omega, epsilon)
-% Deterministic event-triggered transmission criterion (error-norm only).
+%% Deterministic event-triggered transmission criterion (error-norm only).
+%
 % Based on Ghion & Zorzi (2023), partial condition from eq. (9).
 %
 % A node does NOT transmit if the discrepancy between its current state
@@ -20,6 +20,7 @@ function c = checkDeterministicFusionConditions(X, x_bar, Omega, epsilon)
 %
 % Output:
 %   c       - 1 to transmit, 0 otherwise
+function c = checkDeterministicFusionConditions(X, x_bar, Omega, epsilon)
 
   e = X - x_bar;
 

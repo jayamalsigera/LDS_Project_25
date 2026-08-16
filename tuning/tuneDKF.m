@@ -1,4 +1,3 @@
-function tuneDKF()
 %% DKF Hyperparameter Tuning (delta x beta grid)
 %
 %   tuneDKF()
@@ -15,6 +14,7 @@ function tuneDKF()
 % alpha barely moved the frontier in the OAT run (dominated except when it
 % floods the channel), so it is fixed at tuneDkfAlphaFixed. The grids live in
 % sst3dParams.m.
+function tuneDKF()
 
   rng(42);
 
