@@ -15,19 +15,24 @@
 % plant with v_t gives the same distribution; this implementation uses that
 % equivalent form for clarity.
 %
-% G_t (Kalman gain, Eq. 71), H_t (Eq. 87), L_t (Eq. 92) come from a
+% G_t (robust gain, Eq. 71), H_t (Eq. 87), L_t (Eq. 92) come from a
 % centralized risk-sensitive Kalman sweep. The risk-sensitivity parameter
 % lambda_t is the reciprocal of the theta returned by findTheta.
 %
+% The backward recursion is initialized at T + burnIn and the extra steps are
+% discarded, so the retained H_t, L_t are free of the boundary transient (both
+% papers run the sweep past the simulation horizon for this reason).
+%
 % Usage:
 %   lfm = LeastFavorableModel(plant, P0, b, T);
-%   lfm = lfm.simulate(x0);      % populates lfm.X, lfm.Y
+%   lfm = lfm.simulate(x0, x0_hat);   % populates lfm.X, lfm.Y
 %
 classdef LeastFavorableModel
   properties
     Ts
     T
     b
+    burnIn  % extra backward-sweep steps past T, discarded
     % Nominal matrices (with process/measurement drivers stacked into one
     % m = plant.m + plant.p dimensional noise eps_t ~ N(0, I_m)).
     A
@@ -38,26 +43,30 @@ classdef LeastFavorableModel
     p
     m
     % Per-step LF statistics (indexed 1..T+1, corresponding to t = 0..T)
-    G       % n x p x (T+1)   Kalman gain
+    G       % n x p x (T+1)   robust gain
     V       % n x n x (T+1)   LF error covariance
     lambda  % (T+1) x 1       per-step Lagrange multiplier
     H       % m x n x (T+1)   LF noise mean shift
-    L       % m x m x (T+1)   LF noise covariance Cholesky factor
-    % Outputs
+    L       % m x m x (T+1)   LF noise square root, L L' = Kv
+    % Outputs (x_0..x_T, y_0..y_T)
     X
     Y
   end
 
   methods
-    function self = LeastFavorableModel(plant, P0, b, T)
+    function self = LeastFavorableModel(plant, P0, b, T, burnIn)
       if b <= 0
         error('LeastFavorableModel:NonPositiveTolerance', ...
           'b must be > 0; for b = 0 the LFM coincides with the nominal plant.');
       end
+      if nargin < 5 || isempty(burnIn)
+        burnIn = 200;
+      end
 
-      self.Ts = plant.Ts;
-      self.T  = T;
-      self.b  = b;
+      self.Ts     = plant.Ts;
+      self.T      = T;
+      self.b      = b;
+      self.burnIn = burnIn;
 
       self.A = plant.A;
       self.C = plant.C;
@@ -80,14 +89,16 @@ classdef LeastFavorableModel
       A_ = self.A; C_ = self.C; Bt_ = self.Btil; Dt_ = self.Dtil;
       In = eye(n_); Im = eye(m_);
 
-      G      = zeros(n_, p_, T_ + 1);
-      V      = zeros(n_, n_, T_ + 1);
-      lambda = zeros(T_ + 1, 1);
-      Pnext  = zeros(n_, n_, T_ + 1);
+      % Both sweeps run to Tswp; only the first T+1 steps are kept.
+      Tswp = T_ + self.burnIn;
+
+      G      = zeros(n_, p_, Tswp + 1);
+      V      = zeros(n_, n_, Tswp + 1);
+      lambda = zeros(Tswp + 1, 1);
 
       V(:, :, 1) = P0;
 
-      for idx = 1:T_ + 1
+      for idx = 1:Tswp + 1
         Vt = V(:, :, idx);
 
         % Nominal joint covariance blocks for z_t = (x_{t+1}, y_t) given Y_{t-1}
@@ -98,8 +109,7 @@ classdef LeastFavorableModel
         Gt  = Pxy / Py;                          % Eq. 71
         Pn  = symm(Px - Pxy * (Py \ Pxy'));       % nominal one-step error cov
 
-        G(:, :, idx)     = Gt;
-        Pnext(:, :, idx) = Pn;
+        G(:, :, idx) = Gt;
 
         % gamma(Omega, theta) = b, with Omega = Pn^{-1}, theta = 1/lambda
         Omega = Pn \ In;
@@ -110,7 +120,7 @@ classdef LeastFavorableModel
         end
         lambda(idx) = 1 / theta;
 
-        if idx < T_ + 1
+        if idx < Tswp + 1
           % Eq. 74: V_{t+1}^{-1} = P_{t+1}^{-1} - lambda^{-1} I
           invV = symm(Omega - theta * In);
           V(:, :, idx + 1) = symm(invV \ In);
@@ -120,37 +130,54 @@ classdef LeastFavorableModel
       H = zeros(m_, n_, T_ + 1);
       L = zeros(m_, m_, T_ + 1);
 
-      % Backward recursion on W (n x n). Boundary (Eq. 90): W_{T+1} = lambda_T I.
-      W = lambda(T_ + 1) * In;
+      % Backward recursion on W (n x n). Boundary (Eq. 90 with Omega_{T+1} = 0,
+      % so the identity is n x n, not (n+p) x (n+p) as the paper prints it).
+      W = lambda(Tswp + 1) * In;
 
-      for idx = T_ + 1:-1:1
+      for idx = Tswp + 1:-1:1
         Gt   = G(:, :, idx);
         BtGD = Bt_ - Gt * Dt_;                   % n x m
         AtGC = A_ - Gt * C_;                     % n x n
 
         KvInv = symm(Im - BtGD' * (W \ BtGD));    % Eq. 86
-        Kv    = symm(KvInv \ Im);
+        [R, notPd] = chol(KvInv);
+        if notPd
+          error('LeastFavorableModel:NotPositiveDefinite', ...
+            'Kv^{-1} is not positive definite at t=%d; try a smaller b.', idx-1);
+        end
 
-        H(:, :, idx) = Kv * BtGD' * (W \ AtGC);  % Eq. 87
-        % Eq. 92: L_t L_t' = Kv. Small jitter guards against numerical slip.
-        L(:, :, idx) = chol(Kv + 1e-12 * Im, 'lower');
+        Ht = R \ (R' \ (BtGD' * (W \ AtGC)));    % Eq. 87
+
+        if idx <= T_ + 1
+          H(:, :, idx) = Ht;
+          L(:, :, idx) = R \ Im;                 % Eq. 92: L_t L_t' = Kv
+        end
 
         if idx > 1
-          % Eq. 89 + Eq. 83: W_t = (Omega_t^{-1} + lambda_{t-1}^{-1} I)^{-1}
-          M        = symm(W - BtGD * BtGD');
-          OmegaInv = symm(AtGC' * (M \ AtGC));
+          % Zorzi (2017) Eq. 22 + Eq. 83, i.e. Eq. 89 in the positive
+          % semidefinite form that avoids inverting W - (B-GD)(B-GD)'.
+          OmegaInv = symm(AtGC' * (W \ AtGC) + Ht' * KvInv * Ht);
           W        = symm((OmegaInv + (1 / lambda(idx - 1)) * In) \ In);
         end
       end
+
+      G      = G(:, :, 1:T_ + 1);
+      V      = V(:, :, 1:T_ + 1);
+      lambda = lambda(1:T_ + 1);
     end
 
     %% Forward-simulate the LFM to produce (X, Y)
-    function self = simulate(self, x0)
+    function self = simulate(self, x0, x0_hat)
       n_ = self.n; m_ = self.m; T_ = self.T;
       A_ = self.A; C_ = self.C; Bt_ = self.Btil; Dt_ = self.Dtil;
 
+      if nargin < 3 || isempty(x0_hat)
+        x0_hat = zeros(n_, 1);
+      end
+
       xi = zeros(2 * n_, T_ + 1);
-      xi(1:n_, 1) = x0;          % e_0 = 0
+      xi(1:n_, 1)       = x0;
+      xi(n_+1:2*n_, 1)  = x0 - x0_hat;
 
       for idx = 1:T_ + 1
         x_t = xi(1:n_, idx);
