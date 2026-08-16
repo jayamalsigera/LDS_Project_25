@@ -5,6 +5,9 @@
 % runData.samples has a nomSample field.
 function plotRMSEvsTXrate(path)
 
+  if nargin < 1
+    path = '';
+  end
   runData = loadRun(path);
 
   params   = runData.params;
