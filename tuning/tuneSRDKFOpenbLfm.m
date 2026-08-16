@@ -47,7 +47,7 @@ function tuneSRDKFOpenbLfm()
     % LeastFavorableModel object, whose per-step sweep arrays (notably L, an
     % m-by-m-by-(T+1) factor ~ hundreds of MB) would otherwise be stored 50x and
     % broadcast to every parfor worker -- blowing past node memory.
-    s = lfm.simulate(P.x0);
+    s = lfm.simulate(P.x0, P.x0_hat);
     samples{run} = struct('X', s.X, 'Y', s.Y);
   end
 

@@ -74,7 +74,7 @@ function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
 
   % Pseudo-nominal joint covariance K of z = (x_{t+1}, y_t): nominal transition
   % driven by unit-covariance noise, state error e ~ N(0, V). (These Px/Py/Pxy
-  % blocks are literally what precompute forms at LeastFavorableModel.m:94-96.)
+  % blocks are literally what precompute forms at LeastFavorableModel.m:105-107.)
   Px  = symm(A * V * A' + Bt * Bt');
   Py  = symm(C * V * C' + Dt * Dt');
   Pxy = A * V * C' + Bt * Dt';
