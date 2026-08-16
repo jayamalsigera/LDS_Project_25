@@ -1,5 +1,6 @@
 %% Load a saved Monte Carlo run produced by saveRun.
 function runData = loadRun(path)
+  path = fullfile('results', path);
 
   s = load(path);
   if ~isfield(s, 'runData')
