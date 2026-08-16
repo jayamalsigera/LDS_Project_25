@@ -8,13 +8,24 @@
 %% Plant
 dim = 3;                  % Spatial dimension = measurement rows per sensor
 
-T = 1000;                 % Number of simulation steps
-% T = 250;                 % Number from paper
-
 Ts = 0.1;                 % Sampling period
 
-noiseScale = 1;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
-x0 = [25 25 25 1000 1000 1000]';  % Initial true state: [vx vy vz px py pz]
+T = 250 / Ts;             % Number of simulation steps (from paper)
+% T = 250;                  % Smoke tests
+
+noiseScale = 10;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
+
+% Initial true state [vx vy vz px py pz]. Following the paper, x0 is random with
+% zero mean and covariance V_{0|-1} = I, redrawn every Monte Carlo run (the
+% estimate* scripts call sampleX0 inside their run loops) so the initial
+% condition contributes its share of the MC variance.
+stateDim = 2 * dim;
+V0 = eye(stateDim);                 % V_{0|-1}
+sampleX0 = @() randn(stateDim, 1);
+
+% Single fixed draw, kept only for the tune* functions, which still simulate
+% from one deterministic initial state (see tuning/).
+x0 = sampleX0();
 
 %% Network
 
@@ -32,6 +43,7 @@ maxLength = 5000;         % Spatial extent for random network generation
 
 %% Estimators
 consensusSteps = 3;       % DSEACP consensus iterations (L)
+% consensusSteps = 1;       % Smoke test
 
 % Event-trigger parameters for DKF/RDKF/SRDKF
 dkfAlpha = 10;
@@ -54,13 +66,15 @@ errorNormWeightsClosed = 0.15 * eye(3);  % Z (closed-loop, innovation space)
 errorNormWeightsOpen = 1e-6 * eye(3);    % Y (open-loop, raw-measurement space)
 
 %% Initial estimate
-x0_hat = x0;
-P0 = 1e3 * eye(size(x0, 1));   % No prior;
-% P0 = 1e-6 * eye(size(x0, 1));  % "perfect knowledge"
+% Prior matched to the distribution x0 is drawn from: mean E[x0] = 0 and
+% covariance V_{0|-1}. Do not hand the filters the realized x0 -- that is a
+% "cheating" prior and it makes the transient meaningless.
+x0_hat = zeros(stateDim, 1);
+P0 = V0;
 
 %% Monte Carlo
 totalRuns = 200;
-% totalRuns = 5;   % smoke / regression override (see sst3d-extension-plan.md)
+% totalRuns = 10;   % smoke tests
 
 totalTuneRuns = 50;
 
