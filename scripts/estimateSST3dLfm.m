@@ -101,8 +101,9 @@ tic
 
 % Showcase run (serial) - keeps sample objects available for trajectory plots.
 % Also draw a nominal-model sample for side-by-side visual comparison.
-mdlSample        = lfm.simulate(x0);
-nomSample        = plant.simulate(x0);
+x0Sample         = sampleX0();          % shared so the two panels start alike
+mdlSample        = lfm.simulate(x0Sample);
+nomSample        = plant.simulate(x0Sample);
 ckfSample        = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 crkfSample       = crkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dseacpSample     = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
@@ -140,7 +141,7 @@ srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
 
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
-  s = lfm.simulate(x0);
+  s = lfm.simulate(sampleX0());
 
   ckfRmse(run, :)    = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
   crkfRmse(run, :)   = crkf.estimate(x0_hat, P0, s.X, s.Y).RMSE;

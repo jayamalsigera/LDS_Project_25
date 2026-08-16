@@ -92,7 +92,7 @@ srdkflocOpenTxRate   = zeros(totalRuns, T + 1);
 tic
 
 % Showcase run (serial) - keeps sample objects available for trajectory plots
-mdlSample        = plant.simulate(x0);
+mdlSample        = plant.simulate(sampleX0());
 ckfSample        = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 crkfSample       = crkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
 dseacpSample     = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
@@ -130,7 +130,7 @@ srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
 
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
-  s = plant.simulate(x0);
+  s = plant.simulate(sampleX0());
 
   ckfRmse(run, :)    = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
   crkfRmse(run, :)   = crkf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
