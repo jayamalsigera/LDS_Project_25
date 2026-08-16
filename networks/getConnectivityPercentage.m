@@ -12,5 +12,6 @@
 function percentage = getConnectivityPercentage(G)
     N = numnodes(G);
     maxPossibleEdges = N * (N - 1);  % Directed graph without self-loops
-    percentage = (numedges(G) / maxPossibleEdges) * 100;
+    numEdges = numedges(G) - N;
+    percentage = (numEdges / maxPossibleEdges) * 100;
 end

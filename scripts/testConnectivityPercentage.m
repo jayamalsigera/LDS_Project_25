@@ -7,11 +7,14 @@ numNodes = 100;
 numSensors = 20;
 maxLength = 5000;
 
+connTarget = 0.04;
+
 percentages = zeros(numIterations, 1);
 
 h = waitbar(0, 'Running iterations...');
 for i = 1:numIterations
-  G = createSpatialNetwork(numNodes, numSensors, maxLength);
+  % G = createSpatialNetwork(numNodes, numSensors, maxLength);
+  G = createRandomNetwork(numNodes, numSensors, connTarget, maxLength);
   percentages(i) = getConnectivityPercentage(G);
   waitbar(i/numIterations, h, sprintf('Iteration %d/%d', i, numIterations));
 end
