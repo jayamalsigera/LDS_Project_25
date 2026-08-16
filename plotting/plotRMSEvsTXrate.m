@@ -16,9 +16,6 @@ function plotRMSEvsTXrate(path)
   Ts = params.Ts;
   isLfm = isfield(samples, 'nomSample');
 
-  % Network layout
-  plotNetwork(netGraph, params.maxLength);
-
   % Per-estimator plotting spec: {label, results field prefix, color, line style, hasTxRate}.
   %   Colors grouped by estimator family; line styles separate variants within a family.
   %   Centralized  → blue family    (CKF solid, CRKF dashed)
