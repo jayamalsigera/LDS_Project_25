@@ -8,7 +8,7 @@
 %   G - A graph or digraph object
 %
 function assertConnected(G)
-  bins = conncomp(G, 'Type', 'weak');
+  bins = conncomp(G, 'Type', 'strong');
   nComponents = max(bins);
   if nComponents > 1
     error('assertConnected:disconnected', ...
