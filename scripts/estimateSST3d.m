@@ -12,7 +12,9 @@ sst3dParams;
 
 %% Network Definition
 disp("Creating Network")
-netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+
+% netGraph = createSpatialNetwork(nodeCount, sensorCount, maxLength);
+netGraph = createRandomNetwork(nodeCount, sensorCount, connTarget, maxLength);
 
 assertConnected(netGraph);
 

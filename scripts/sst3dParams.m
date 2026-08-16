@@ -7,14 +7,23 @@
 
 %% Plant
 dim = 3;                  % Spatial dimension = measurement rows per sensor
-T = 1000;                 % Number of simulation steps (paper uses 250; knob)
+
+T = 1000;                 % Number of simulation steps
+% T = 250;                 % Number from paper
+
 Ts = 0.1;                 % Sampling period
+
 noiseScale = 1;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
 x0 = [25 25 25 1000 1000 1000]';  % Initial true state: [vx vy vz px py pz]
 
 %% Network
+
+connTarget = 0.04;   % Percentage of node connections (excluding self loops);
+
 nodeCount = 100;
-sensorCount = 100;
+
+sensorCount = 20;     % Similar scenario to Ghion & Zorzi (2023)
+% sensorCount = 100;      % For correct behavior of the Stochastic event estimators
 
 % The stochastic trigger implementations can't handle non sensor nodes properly,
 % so keep every node a sensor for now (sensorCount = nodeCount).
@@ -31,7 +40,7 @@ dkfDelta = 0.5;
 
 % KL-divergence tolerance for robust filters (b); LFM data is generated at the
 % same radius so the filter defends exactly the mismatch present in the data
-% (matches Ghion & Zorzi 2023, Section 6, which uses b = 0.05 for both).
+% (Ghion & Zorzi 2023, Section 6, uses b = 0.05 for both).
 klTolerance = 0.05;
 lfmKlTolerance = 0.05;
 
@@ -46,11 +55,12 @@ errorNormWeightsOpen = 1e-6 * eye(3);    % Y (open-loop, raw-measurement space)
 
 %% Initial estimate
 x0_hat = x0;
-P0 = 1e3 * eye(size(x0, 1));  % No prior; swap to 1e-6*I for "perfect knowledge"
+P0 = 1e3 * eye(size(x0, 1));   % No prior;
+% P0 = 1e-6 * eye(size(x0, 1));  % "perfect knowledge"
 
 %% Monte Carlo
 totalRuns = 200;
-% totalRuns = 3;   % smoke / regression override (see sst3d-extension-plan.md)
+% totalRuns = 5;   % smoke / regression override (see sst3d-extension-plan.md)
 
 totalTuneRuns = 50;
 
