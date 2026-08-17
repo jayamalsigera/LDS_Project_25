@@ -26,6 +26,7 @@ classdef CRKF
     x_hat
     % Stats
     RMSE
+    theta_hist
   end
 
   methods
@@ -42,6 +43,7 @@ classdef CRKF
       self.n = plant.n;
 
       self.x_hat = zeros(self.n, T + 1);
+      self.theta_hist = zeros(1, T + 1);
     end
 
     %% Estimation
@@ -53,7 +55,8 @@ classdef CRKF
 
       for t = 2:self.T + 1
         % Prediction (robust)
-        [q, Omega] = self.prediction(q, Omega);
+        [q, Omega, theta_t] = self.prediction(q, Omega);
+        self.theta_hist(t) = theta_t;
 
         % Correction
         y = Y(:, t);
@@ -66,7 +69,7 @@ classdef CRKF
     end
 
     %% Robust prediction step — eq. (8) in Ghion & Zorzi (2023)
-    function [q_pred, Psi_pred] = prediction(self, q, Omega)
+    function [q_pred, Psi_pred, theta] = prediction(self, q, Omega)
       Qinv = self.Q \ eye(self.n);
 
       % Nominal information prediction

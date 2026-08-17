@@ -28,6 +28,7 @@ classdef RDKF
     % Stats
     RMSE
     txRate
+    theta_hist
   end
 
   methods
@@ -70,6 +71,7 @@ classdef RDKF
 
       self.X_hat = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
+      self.theta_hist = zeros(self.N, T + 1);
     end
 
     %% Estimation Method
@@ -101,7 +103,8 @@ classdef RDKF
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
-        [q_pred, Psi] = self.getLocalPriors(q_fused, Omega_fused);
+        [q_pred, Psi, theta_t] = self.getLocalPriors(q_fused, Omega_fused);
+        self.theta_hist(:, t) = theta_t;
         [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
       end
 
@@ -187,10 +190,11 @@ classdef RDKF
     end
 
     %% Prediction Step
-    function [q_pred, Psi] = getLocalPriors(self, q_fused, Omega_fused)
+    function [q_pred, Psi, theta_vec] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Omega_pred = zeros(self.n, self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
+      theta_vec = zeros(self.N, 1);
 
       for i = 1:self.N
         q_i_F = q_fused(:, i);
@@ -200,6 +204,7 @@ classdef RDKF
 
         % Risk Sensitivity Parameter
         theta = findTheta(Omega_pred(:, :, i), self.b(i));
+        theta_vec(i) = theta;
 
         % Robust information Pair
         Psi(:, :, i) = Omega_pred(:, :, i) - theta * eye(self.n);

@@ -39,6 +39,7 @@ classdef SRDKF
     % Stats
     RMSE
     txRate
+    theta_hist
     % flag for open_loop ('open') vs closed_loop ('closed')
     triggerMode
   end
@@ -81,6 +82,7 @@ classdef SRDKF
 
       self.X_hat = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
+      self.theta_hist = zeros(self.N, T + 1);
 
       self.triggerMode = triggerMode;
     end
@@ -114,7 +116,8 @@ classdef SRDKF
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
-        [q_pred, Psi] = self.getLocalPriors(q_fused, Omega_fused);
+        [q_pred, Psi, theta_t] = self.getLocalPriors(q_fused, Omega_fused);
+        self.theta_hist(:, t) = theta_t;
         [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
       end
 
@@ -229,19 +232,21 @@ classdef SRDKF
     end
 
     %% Prediction Step
-    function [q_pred, Psi] = getLocalPriors(self, q_fused, Omega_fused)
+    function [q_pred, Psi, theta_vec] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
+      theta_vec = zeros(self.N, 1);
 
       for i = 1:self.N
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        [q_i_pred, Psi_i_pred, ~, ~] = predictRobustFusion( ...
+        [q_i_pred, Psi_i_pred, ~, theta_i] = predictRobustFusion( ...
           q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
 
         q_pred(:, i) = q_i_pred;
         Psi(:, :, i) = Psi_i_pred;
+        theta_vec(i) = theta_i;
       end
     end
 

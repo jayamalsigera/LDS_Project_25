@@ -97,6 +97,14 @@ rdkflocTxRate        = zeros(totalRuns, T + 1);
 srdkflocClosedTxRate = zeros(totalRuns, T + 1);
 srdkflocOpenTxRate   = zeros(totalRuns, T + 1);
 
+crkfTheta            = zeros(totalRuns, T + 1);
+rdkfTheta            = zeros(totalRuns, nodeCount, T + 1);
+rdkflocTheta         = zeros(totalRuns, nodeCount, T + 1);
+srdkfClosedTheta     = zeros(totalRuns, nodeCount, T + 1);
+srdkfOpenTheta       = zeros(totalRuns, nodeCount, T + 1);
+srdkflocClosedTheta  = zeros(totalRuns, nodeCount, T + 1);
+srdkflocOpenTheta    = zeros(totalRuns, nodeCount, T + 1);
+
 tic
 
 % Showcase run (serial) - keeps sample objects available for trajectory plots.
@@ -139,12 +147,22 @@ srdkflocClosedTxRate(1, :) = srdkflocClosedSample.txRate;
 srdkflocOpenRmse(1, :)   = srdkflocOpenSample.RMSE;
 srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
 
+crkfTheta(1, :)          = crkfSample.theta_hist;
+rdkfTheta(1, :, :)       = rdkfSample.theta_hist;
+rdkflocTheta(1, :, :)    = rdkflocSample.theta_hist;
+srdkfClosedTheta(1, :, :) = srdkfClosedSample.theta_hist;
+srdkfOpenTheta(1, :, :)   = srdkfOpenSample.theta_hist;
+srdkflocClosedTheta(1, :, :) = srdkflocClosedSample.theta_hist;
+srdkflocOpenTheta(1, :, :)   = srdkflocOpenSample.theta_hist;
+
 parfor run = 2:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
   s = lfm.simulate(sampleX0(), x0_hat);
 
   ckfRmse(run, :)    = ckf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
-  crkfRmse(run, :)   = crkf.estimate(x0_hat, P0, s.X, s.Y).RMSE;
+  crkfRun = crkf.estimate(x0_hat, P0, s.X, s.Y);
+  crkfRmse(run, :) = crkfRun.RMSE;
+  crkfTheta(run, :) = crkfRun.theta_hist;
   dseacpRmse(run, :) = dseacp.estimate(x0_hat, P0, s.X, s.Y).RMSE;
 
   dkfRun = dkf.estimate(x0_hat, P0, s.X, s.Y);
@@ -154,6 +172,7 @@ parfor run = 2:totalRuns
   rdkfRun = rdkf.estimate(x0_hat, P0, s.X, s.Y);
   rdkfRmse(run, :)   = rdkfRun.RMSE;
   rdkfTxRate(run, :) = rdkfRun.txRate;
+  rdkfTheta(run, :, :) = rdkfRun.theta_hist;
 
   sdkfClosedRun = sdkfClosed.estimate(x0_hat, P0, s.X, s.Y);
   sdkfClosedRmse(run, :)   = sdkfClosedRun.RMSE;
@@ -166,22 +185,27 @@ parfor run = 2:totalRuns
   srdkfClosedRun = srdkfClosed.estimate(x0_hat, P0, s.X, s.Y);
   srdkfClosedRmse(run, :)   = srdkfClosedRun.RMSE;
   srdkfClosedTxRate(run, :) = srdkfClosedRun.txRate;
+  srdkfClosedTheta(run, :, :) = srdkfClosedRun.theta_hist;
 
   srdkfOpenRun = srdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkfOpenRmse(run, :)   = srdkfOpenRun.RMSE;
   srdkfOpenTxRate(run, :) = srdkfOpenRun.txRate;
+  srdkfOpenTheta(run, :, :) = srdkfOpenRun.theta_hist;
 
   rdkflocRun = rdkfloc.estimate(x0_hat, P0, s.X, s.Y);
   rdkflocRmse(run, :)   = rdkflocRun.RMSE;
   rdkflocTxRate(run, :) = rdkflocRun.txRate;
+  rdkflocTheta(run, :, :) = rdkflocRun.theta_hist;
 
   srdkflocClosedRun = srdkflocClosed.estimate(x0_hat, P0, s.X, s.Y);
   srdkflocClosedRmse(run, :)   = srdkflocClosedRun.RMSE;
   srdkflocClosedTxRate(run, :) = srdkflocClosedRun.txRate;
+  srdkflocClosedTheta(run, :, :) = srdkflocClosedRun.theta_hist;
 
   srdkflocOpenRun = srdkflocOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkflocOpenRmse(run, :)   = srdkflocOpenRun.RMSE;
   srdkflocOpenTxRate(run, :) = srdkflocOpenRun.txRate;
+  srdkflocOpenTheta(run, :, :) = srdkflocOpenRun.theta_hist;
 end
 fprintf('Elapsed: %.3f s\n', toc);
 
@@ -197,7 +221,10 @@ results = struct( ...
   'sdkfClosedTxRate', sdkfClosedTxRate, 'sdkfOpenTxRate', sdkfOpenTxRate, ...
   'srdkfClosedTxRate', srdkfClosedTxRate, 'srdkfOpenTxRate', srdkfOpenTxRate, ...
   'rdkflocTxRate', rdkflocTxRate, ...
-  'srdkflocClosedTxRate', srdkflocClosedTxRate, 'srdkflocOpenTxRate', srdkflocOpenTxRate);
+  'srdkflocClosedTxRate', srdkflocClosedTxRate, 'srdkflocOpenTxRate', srdkflocOpenTxRate, ...
+  'crkfTheta', crkfTheta, 'rdkfTheta', rdkfTheta, 'rdkflocTheta', rdkflocTheta, ...
+  'srdkfClosedTheta', srdkfClosedTheta, 'srdkfOpenTheta', srdkfOpenTheta, ...
+  'srdkflocClosedTheta', srdkflocClosedTheta, 'srdkflocOpenTheta', srdkflocOpenTheta);
 samples = struct( ...
   'mdlSample', mdlSample, 'nomSample', nomSample, ...
   'ckfSample', ckfSample, 'crkfSample', crkfSample, 'dseacpSample', dseacpSample, ...
