@@ -85,6 +85,6 @@ function tuneSRDKFClosedbLfm()
   extras = struct( ...
     'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Closed', ...
     'bGrid', bGrid, 'bases', struct('b', NaN));
-  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results);
   fprintf('Plot locally with: plotTuneRun(''%s'')\n', savedPath);
 end

@@ -4,7 +4,7 @@
 % (T, nodeCount, sensorCount, klTolerance, totalRuns) plus a timestamp,
 % and stores the full parameter set inside the .mat alongside the results.
 %
-function savedPath = saveRun(scriptName, params, extras, netGraph, results, samples)
+function savedPath = saveRun(scriptName, params, extras, netGraph, results)
 
   ts = char(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
   totalRuns = extras.totalRuns;
@@ -36,7 +36,6 @@ function savedPath = saveRun(scriptName, params, extras, netGraph, results, samp
   runData.extras = extras;
   runData.netGraph = netGraph;
   runData.results = results;
-  runData.samples = samples;
 
   save(savedPath, 'runData', '-v7.3');
   fprintf('Saved run to %s\n', savedPath);
