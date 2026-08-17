@@ -67,7 +67,7 @@ function tuneSRDKFOpen()
     'totalRuns', totalTuneRuns, 'filterName', 'SRDKF-Open', ...
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
-  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results);
 
   %% Plotting
   disp("Plotting results")

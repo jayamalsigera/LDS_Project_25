@@ -99,52 +99,7 @@ srdkflocOpenTheta    = zeros(totalRuns, nodeCount, T + 1);
 
 tic
 
-% Showcase run (serial) - keeps sample objects available for trajectory plots
-mdlSample        = plant.simulate(sampleX0());
-ckfSample        = ckf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-crkfSample       = crkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-dseacpSample     = dseacp.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-dkfSample        = dkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-rdkfSample       = rdkf.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-sdkfClosedSample = sdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-sdkfOpenSample   = sdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-srdkfClosedSample = srdkfClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-srdkfOpenSample   = srdkfOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-rdkflocSample        = rdkfloc.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-srdkflocClosedSample = srdkflocClosed.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-srdkflocOpenSample   = srdkflocOpen.estimate(x0_hat, P0, mdlSample.X, mdlSample.Y);
-
-ckfRmse(1, :)        = ckfSample.RMSE;
-crkfRmse(1, :)       = crkfSample.RMSE;
-dseacpRmse(1, :)     = dseacpSample.RMSE;
-dkfRmse(1, :)        = dkfSample.RMSE;
-dkfTxRate(1, :)      = dkfSample.txRate;
-rdkfRmse(1, :)       = rdkfSample.RMSE;
-rdkfTxRate(1, :)     = rdkfSample.txRate;
-sdkfClosedRmse(1, :) = sdkfClosedSample.RMSE;
-sdkfClosedTxRate(1, :) = sdkfClosedSample.txRate;
-sdkfOpenRmse(1, :)   = sdkfOpenSample.RMSE;
-sdkfOpenTxRate(1, :) = sdkfOpenSample.txRate;
-srdkfClosedRmse(1, :) = srdkfClosedSample.RMSE;
-srdkfClosedTxRate(1, :) = srdkfClosedSample.txRate;
-srdkfOpenRmse(1, :)   = srdkfOpenSample.RMSE;
-srdkfOpenTxRate(1, :) = srdkfOpenSample.txRate;
-rdkflocRmse(1, :)      = rdkflocSample.RMSE;
-rdkflocTxRate(1, :)    = rdkflocSample.txRate;
-srdkflocClosedRmse(1, :)   = srdkflocClosedSample.RMSE;
-srdkflocClosedTxRate(1, :) = srdkflocClosedSample.txRate;
-srdkflocOpenRmse(1, :)   = srdkflocOpenSample.RMSE;
-srdkflocOpenTxRate(1, :) = srdkflocOpenSample.txRate;
-
-crkfTheta(1, :)          = crkfSample.theta_hist;
-rdkfTheta(1, :, :)       = rdkfSample.theta_hist;
-rdkflocTheta(1, :, :)    = rdkflocSample.theta_hist;
-srdkfClosedTheta(1, :, :) = srdkfClosedSample.theta_hist;
-srdkfOpenTheta(1, :, :)   = srdkfOpenSample.theta_hist;
-srdkflocClosedTheta(1, :, :) = srdkflocClosedSample.theta_hist;
-srdkflocOpenTheta(1, :, :)   = srdkflocOpenSample.theta_hist;
-
-parfor run = 2:totalRuns
+parfor run = 1:totalRuns
   fprintf('Running simulation %d/%d\n', run, totalRuns);
   s = plant.simulate(sampleX0());
 
@@ -214,16 +169,8 @@ results = struct( ...
   'crkfTheta', crkfTheta, 'rdkfTheta', rdkfTheta, 'rdkflocTheta', rdkflocTheta, ...
   'srdkfClosedTheta', srdkfClosedTheta, 'srdkfOpenTheta', srdkfOpenTheta, ...
   'srdkflocClosedTheta', srdkflocClosedTheta, 'srdkflocOpenTheta', srdkflocOpenTheta);
-samples = struct( ...
-  'mdlSample', mdlSample, ...
-  'ckfSample', ckfSample, 'crkfSample', crkfSample, 'dseacpSample', dseacpSample, ...
-  'dkfSample', dkfSample, 'rdkfSample', rdkfSample, ...
-  'sdkfClosedSample', sdkfClosedSample, 'sdkfOpenSample', sdkfOpenSample, ...
-  'srdkfClosedSample', srdkfClosedSample, 'srdkfOpenSample', srdkfOpenSample, ...
-  'rdkflocSample', rdkflocSample, ...
-  'srdkflocClosedSample', srdkflocClosedSample, 'srdkflocOpenSample', srdkflocOpenSample);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
-savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results, samples);
+savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results);
 
 %% Plotting
 plottingEnabled = false;  % enable for interactive runs; off for headless/batch

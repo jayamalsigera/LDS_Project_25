@@ -91,7 +91,7 @@ function tuneRDKF()
     'alphaFixed', alphaFixed, 'bFixed', bFixed, ...
     'gridAxisCol', struct('name', 'beta',  'values', betaGrid), ...   % reshape columns
     'gridAxisRow', struct('name', 'delta', 'values', deltaGrid));     % reshape rows
-  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results);
 
   %% Plotting
   disp("Plotting results")

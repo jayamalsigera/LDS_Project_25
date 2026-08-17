@@ -13,11 +13,10 @@ function plotRMSEvsTXrate(path)
   params   = runData.params;
   netGraph = runData.netGraph;
   results  = runData.results;
-  samples  = runData.samples;
 
   T  = params.T;
   Ts = params.Ts;
-  isLfm = isfield(samples, 'nomSample');
+  isLfm = contains(runData.script, 'Lfm');
 
   % Per-estimator plotting spec: {label, results field prefix, color, line style, hasTxRate}.
   %   Colors grouped by estimator family; line styles separate variants within a family.

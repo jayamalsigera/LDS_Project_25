@@ -73,7 +73,7 @@ function tuneSDKFClosed()
     'totalRuns', totalTuneRuns, 'filterName', 'SDKF-Closed', ...
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
-  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results);
 
   %% Plotting
   disp("Plotting results")

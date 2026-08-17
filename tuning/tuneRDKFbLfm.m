@@ -82,6 +82,6 @@ function tuneRDKFbLfm()
   extras = struct( ...
     'totalRuns', totalTuneRuns, 'filterName', 'RDKF', ...
     'bGrid', bGrid, 'bases', struct('b', NaN));
-  savedPath = saveRun(mfilename, P, extras, netGraph, results, struct());
+  savedPath = saveRun(mfilename, P, extras, netGraph, results);
   fprintf('Plot locally with: plotTuneRun(''%s'')\n', savedPath);
 end

@@ -13,11 +13,10 @@ function plotTheta(path)
 
   params   = runData.params;
   results  = runData.results;
-  samples  = runData.samples;
 
   T  = params.T;
   Ts = params.Ts;
-  isLfm = isfield(samples, 'nomSample');
+  isLfm = contains(runData.script, 'Lfm');
 
   % Spec for robust estimators only
   spec = {
