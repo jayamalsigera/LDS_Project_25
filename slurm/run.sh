@@ -13,4 +13,4 @@
 
 # Use --mem=96G --cpus-per-task 32 for running the full 200 MC runs
 
-srun matlab -batch "$1"
+srun matlab -batch "$*"
