@@ -11,7 +11,6 @@ dim = 3;                  % Spatial dimension = measurement rows per sensor
 Ts = 0.1;                 % Sampling period
 
 T = 250 / Ts;             % Number of simulation steps (from paper)
-% T = 250;                  % Smoke tests
 
 noiseScale = 10;           % Measurement-noise scale k: R^i = sqrt(k) P_i R0 P_i'
 
@@ -43,7 +42,6 @@ maxLength = 5000;         % Spatial extent for random network generation
 
 %% Estimators
 consensusSteps = 3;       % DSEACP consensus iterations (L)
-% consensusSteps = 1;       % Smoke test
 
 % Event-trigger parameters for DKF/RDKF/SRDKF
 dkfAlpha = 10;
@@ -74,7 +72,6 @@ P0 = V0;
 
 %% Monte Carlo
 totalRuns = 200;
-% totalRuns = 10;   % smoke tests
 
 totalTuneRuns = 50;
 
