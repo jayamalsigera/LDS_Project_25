@@ -1,7 +1,7 @@
 
+function savedPath = estimateSST3d(varargin)
 %% Simulations of the 3D Single-Target Tracking Plant
 
-clear;
 close all;
 clc;
 rng(42);
@@ -9,6 +9,15 @@ rng(42);
 
 %% Parameters
 sst3dParams;
+P = collectParams(varargin{:});
+fields = fieldnames(P);
+for f = 1:numel(fields)
+  eval([fields{f} ' = P.' fields{f} ';']);
+end
+totalRuns = P.totalRuns;
+sampleX0 = P.sampleX0;
+x0_hat = P.x0_hat;
+P0 = P.P0;
 
 %% Network Definition
 disp("Creating Network")
@@ -170,11 +179,4 @@ results = struct( ...
   'srdkfClosedTheta', srdkfClosedTheta, 'srdkfOpenTheta', srdkfOpenTheta, ...
   'srdkflocClosedTheta', srdkflocClosedTheta, 'srdkflocOpenTheta', srdkflocOpenTheta);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
-savedPath = saveRun(mfilename, collectParams(), extras, netGraph, results);
-
-%% Plotting
-plottingEnabled = false;  % enable for interactive runs; off for headless/batch
-if plottingEnabled
-  disp("Plotting results.")
-  plotRMSEvsTXrate(savedPath);
-end
+savedPath = saveRun(mfilename, P, extras, netGraph, results);
