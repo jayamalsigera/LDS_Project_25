@@ -9,7 +9,7 @@ function plotTheta(path)
   if nargin < 1
     path = '';
   end
-  runData = loadRun(path);
+  runData = loadRun(path, 'estimateSST*.mat');
 
   params   = runData.params;
   results  = runData.results;
@@ -82,8 +82,8 @@ function plotTheta(path)
     mkdir('results/figures');
   end
   if isLfm
-    exportgraphics(gcf, 'results/figures/theta_vs_time_lfm.png', 'Resolution', 300);
+    exportgraphics(gcf, 'results/figures/theta_vs_time_lfm.pdf', 'ContentType', 'vector');
   else
-    exportgraphics(gcf, 'results/figures/theta_vs_time.png', 'Resolution', 300);
+    exportgraphics(gcf, 'results/figures/theta_vs_time.pdf', 'ContentType', 'vector');
   end
 end

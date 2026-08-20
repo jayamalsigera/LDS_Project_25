@@ -2,11 +2,15 @@
 %
 % With no argument, loads the most recently modified .mat in results/.
 %
-function runData = loadRun(path)
+function runData = loadRun(path, pattern)
   resultsDir = fullfile(projectRoot(), 'results');
 
+  if nargin < 2
+    pattern = '*.mat';
+  end
+
   if nargin < 1 || isempty(path)
-    path = latestRun(resultsDir);
+    path = latestRun(resultsDir, pattern);
   else
     path = fullfile(resultsDir, path);
   end
@@ -19,10 +23,10 @@ function runData = loadRun(path)
   runData = s.runData;
 end
 
-function path = latestRun(resultsDir)
-  files = dir(fullfile(resultsDir, '*.mat'));
+function path = latestRun(resultsDir, pattern)
+  files = dir(fullfile(resultsDir, pattern));
   if isempty(files)
-    error('loadRun:noRuns', 'No .mat runs found in %s', resultsDir);
+    error('loadRun:noRuns', 'No %s runs found in %s', pattern, resultsDir);
   end
   [~, idx] = max([files.datenum]);
   path = fullfile(resultsDir, files(idx).name);
