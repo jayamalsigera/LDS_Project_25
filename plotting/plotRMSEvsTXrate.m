@@ -8,7 +8,7 @@ function plotRMSEvsTXrate(path)
   if nargin < 1
     path = '';
   end
-  runData = loadRun(path);
+  runData = loadRun(path, 'estimateSST*.mat');
 
   params   = runData.params;
   netGraph = runData.netGraph;
@@ -79,9 +79,9 @@ function plotRMSEvsTXrate(path)
     cleanName = strrep(cleanName, ' ', '_');
     cleanName = strrep(cleanName, '-', '_');
     if isLfm
-      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s_lfm.png', cleanName), 'Resolution', 300);
+      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s_lfm.pdf', cleanName), 'ContentType', 'vector');
     else
-      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s.png', cleanName), 'Resolution', 300);
+      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s.pdf', cleanName), 'ContentType', 'vector');
     end
   end
 end
@@ -98,6 +98,7 @@ function drawMetric(t, results, spec, members, suffix, groupName, isLfm)
     style  = spec{row, 4};
 
     y = mean(results.([prefix suffix]), 1);
+
     if isRmse
       semilogy(t, y, style, 'Color', color, 'LineWidth', 1.3, 'DisplayName', members{k});
     else

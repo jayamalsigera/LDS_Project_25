@@ -85,7 +85,7 @@ function plotTuneRun(varargin)
   if ~exist('results/figures', 'dir')
     mkdir('results/figures');
   end
-  exportgraphics(gcf, 'results/figures/tune_tradeoff.png', 'Resolution', 300);
+  exportgraphics(gcf, 'results/figures/tune_tradeoff.pdf', 'ContentType', 'vector');
 end
 
 function plotTimeSeriesFigures(runData)
@@ -153,7 +153,7 @@ function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs, filterNa
     mkdir('results/figures');
   end
   cleanParam = strrep(param, ' ', '_');
-  exportgraphics(gcf, sprintf('results/figures/tune_sweep_%s.png', cleanParam), 'Resolution', 300);
+  exportgraphics(gcf, sprintf('results/figures/tune_sweep_%s.pdf', cleanParam), 'ContentType', 'vector');
 end
 
 function plotGridRun(runData)
@@ -202,7 +202,7 @@ function plotGridRun(runData)
   if ~exist('results/figures', 'dir')
     mkdir('results/figures');
   end
-  exportgraphics(gcf, 'results/figures/tune_grid_tradeoff.png', 'Resolution', 300);
+  exportgraphics(gcf, 'results/figures/tune_grid_tradeoff.pdf', 'ContentType', 'vector');
 
   %% Figure 2: RMSE and TX heatmaps over the grid
   % Config order is col outer, row inner -> column-major reshape(v, nRow, nCol).
@@ -212,7 +212,7 @@ function plotGridRun(runData)
   gridHeatmap(subplot(1, 2, 1), Mrmse, colAx, rowAx, sprintf('%s %s', fn, yLab));
   gridHeatmap(subplot(1, 2, 2), Mtx,   colAx, rowAx, sprintf('%s Mean TX Rate', fn));
 
-  exportgraphics(gcf, 'results/figures/tune_grid_heatmaps.png', 'Resolution', 300);
+  exportgraphics(gcf, 'results/figures/tune_grid_heatmaps.pdf', 'ContentType', 'vector');
 end
 
 function gridHeatmap(ax, M, colAx, rowAx, ttl)

@@ -136,7 +136,7 @@
   if ~exist('results/figures', 'dir')
     mkdir('results/figures');
   end
-  exportgraphics(gcf, 'results/figures/system_checks.png', 'Resolution', 300);
+  exportgraphics(gcf, 'results/figures/system_checks.pdf', 'ContentType', 'vector');
 
 %% ---- helpers -------------------------------------------------------
 
