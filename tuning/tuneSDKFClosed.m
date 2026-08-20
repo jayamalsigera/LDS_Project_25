@@ -14,12 +14,12 @@
 % (keep sensorCount = nodeCount so the stochastic trigger governs every node,
 % otherwise the deterministic relay trigger dominates).
 %
-function tuneSDKFClosed()
+function tuneSDKFClosed(varargin)
 
   rng(42);
 
   %% Fixed parameters
-  P = collectParams();
+  P = collectParams(varargin{:});
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
@@ -28,7 +28,8 @@ function tuneSDKFClosed()
 
   %% Network and Plant
   disp("Creating Network")
-  netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
+  % netGraph = createSpatialNetwork(P.nodeCount, P.sensorCount, P.maxLength);
+  netGraph = createRandomNetwork(P.nodeCount, P.sensorCount, P.connTarget, P.maxLength);
 
   disp("Simulating target dynamics")
   plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
@@ -74,8 +75,4 @@ function tuneSDKFClosed()
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
   savedPath = saveRun(mfilename, P, extras, netGraph, results);
-
-  %% Plotting
-  disp("Plotting results")
-  plotTuneRun(savedPath);
 end
