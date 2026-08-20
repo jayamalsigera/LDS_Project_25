@@ -14,12 +14,12 @@
 % alpha barely moved the frontier in the OAT run (dominated except when it
 % floods the channel), so it is fixed at tuneDkfAlphaFixed. The grids live in
 % sst3dParams.m.
-function tuneDKF()
+function tuneDKF(varargin)
 
   rng(42);
 
   %% Fixed parameters
-  P = collectParams();
+  P = collectParams(varargin{:});
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 

@@ -15,12 +15,12 @@
 % Headless/server run: NO plotting. Move the saved .mat off the cluster and
 % plot locally with plotTuneRun(savedPath).
 %
-function tuneRDKFbLfm()
+function tuneRDKFbLfm(varargin)
 
   rng(42);
 
   %% Fixed parameters
-  P = collectParams();
+  P = collectParams(varargin{:});
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 

@@ -17,12 +17,12 @@
 % layer's knob, not a trigger knob, and is left at its baseline here. Grids
 % live in sst3dParams.m.
 %
-function tuneRDKF()
+function tuneRDKF(varargin)
 
   rng(42);
 
   %% Fixed parameters
-  P = collectParams();
+  P = collectParams(varargin{:});
   Ts = P.Ts; T = P.T;
   totalTuneRuns = P.totalTuneRuns;
 
