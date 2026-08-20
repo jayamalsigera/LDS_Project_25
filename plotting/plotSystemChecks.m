@@ -133,6 +133,11 @@
   ylim([0, n + 1])
   grid on
 
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+  exportgraphics(gcf, 'results/figures/system_checks.png', 'Resolution', 300);
+
 %% ---- helpers -------------------------------------------------------
 
 function [uEigs, mults] = deduplicateEigs(eigs_in, tol)
