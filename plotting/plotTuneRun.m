@@ -81,6 +81,11 @@ function plotTuneRun(varargin)
   if allSs, ylabel('Steady-state RMSE'); else, ylabel('Mean RMSE'); end
   title('RMSE vs Transmission Rate Tradeoff');
   legend('Location', 'best'); grid on;
+
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+  exportgraphics(gcf, 'results/figures/tune_tradeoff.png', 'Resolution', 300);
 end
 
 function plotTimeSeriesFigures(runData)
@@ -143,6 +148,12 @@ function plotSweep(t, configs, rmseCurves, txCurves, param, fixedPairs, filterNa
   xlabel('Time (s)'); ylabel('TX Rate');
   title(sprintf('%s Transmission Rate sweep over %s', filterName, param));
   legend(); grid on;
+
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+  cleanParam = strrep(param, ' ', '_');
+  exportgraphics(gcf, sprintf('results/figures/tune_sweep_%s.png', cleanParam), 'Resolution', 300);
 end
 
 function plotGridRun(runData)
@@ -188,6 +199,11 @@ function plotGridRun(runData)
   title(sprintf('%s: RMSE vs TX tradeoff (%s x %s grid)', fn, rowAx.name, colAx.name));
   legend('Location', 'best'); grid on;
 
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+  exportgraphics(gcf, 'results/figures/tune_grid_tradeoff.png', 'Resolution', 300);
+
   %% Figure 2: RMSE and TX heatmaps over the grid
   % Config order is col outer, row inner -> column-major reshape(v, nRow, nCol).
   Mrmse = reshape(y, nRow, nCol);
@@ -195,6 +211,8 @@ function plotGridRun(runData)
   figure;
   gridHeatmap(subplot(1, 2, 1), Mrmse, colAx, rowAx, sprintf('%s %s', fn, yLab));
   gridHeatmap(subplot(1, 2, 2), Mtx,   colAx, rowAx, sprintf('%s Mean TX Rate', fn));
+
+  exportgraphics(gcf, 'results/figures/tune_grid_heatmaps.png', 'Resolution', 300);
 end
 
 function gridHeatmap(ax, M, colAx, rowAx, ttl)

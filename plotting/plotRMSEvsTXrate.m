@@ -71,6 +71,18 @@ function plotRMSEvsTXrate(path)
       subplot(1, 2, 2);
       drawMetric(t, results, spec, txMembers, 'TxRate', name, isLfm);
     end
+
+    if ~exist('results/figures', 'dir')
+      mkdir('results/figures');
+    end
+    cleanName = strrep(name, ' vs ', '_vs_');
+    cleanName = strrep(cleanName, ' ', '_');
+    cleanName = strrep(cleanName, '-', '_');
+    if isLfm
+      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s_lfm.png', cleanName), 'Resolution', 300);
+    else
+      exportgraphics(gcf, sprintf('results/figures/rmse_tx_%s.png', cleanName), 'Resolution', 300);
+    end
   end
 end
 

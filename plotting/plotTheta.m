@@ -77,4 +77,13 @@ function plotTheta(path)
   end
   legend('Location', 'northeast');
   grid on;
+
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+  if isLfm
+    exportgraphics(gcf, 'results/figures/theta_vs_time_lfm.png', 'Resolution', 300);
+  else
+    exportgraphics(gcf, 'results/figures/theta_vs_time.png', 'Resolution', 300);
+  end
 end
