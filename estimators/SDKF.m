@@ -55,7 +55,7 @@ classdef SDKF
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
 
-      self.W = calcMetropolisWeights(G);
+      self.W = calcFusionWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;
