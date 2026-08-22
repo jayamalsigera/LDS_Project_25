@@ -6,7 +6,7 @@
 %
 %   plotTuneRun(path1, path2, ...)
 %       Overlay the tradeoff curves of several runs on one axis (e.g. a
-%       matched-rate SDKF-Closed vs DKF comparison). The per-sweep time
+%       matched-rate SDKF vs DKF comparison). The per-sweep time
 %       figures are skipped to keep the overlay readable.
 %
 % Parameter-agnostic: the set of swept parameters is discovered from the
@@ -235,9 +235,9 @@ function col = familyColor(filterName, fallbackIdx)
   switch filterName
     case 'DKF'
       col = [0.93 0.69 0.13];   % amber
-    case {'SDKF-Closed', 'SDKF-Open'}
+    case {'SDKF'}
       col = [0.10 0.75 0.65];   % teal
-    case {'SRDKF-Closed', 'SRDKF-Open'}
+    case {'SRDKF'}
       col = [0.47 0.67 0.19];   % green
     case 'RDKF'
       col = [0.49 0.18 0.56];   % purple

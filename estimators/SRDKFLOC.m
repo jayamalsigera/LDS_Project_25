@@ -14,14 +14,13 @@
 %
 classdef SRDKFLOC < SRDKF
   methods
-    function self = SRDKFLOC(plant, Ts, T, G, alpha, beta, delta, bGlobal, Z, triggerMode, P0)
+    function self = SRDKFLOC(plant, Ts, T, G, bGlobal, Z, P0)
       % bGlobal     : scalar global KL radius (lfmKlTolerance, e.g. 0.05).
       % Z           : stochastic-trigger error-norm weight (as in SRDKF).
-      % triggerMode : 'open' or 'closed' (as in SRDKF).
       % P0          : prior covariance, needed to build the global LFM. Placed
       %               last so the signature is an additive tail on SRDKF's.
       bLocal = computeLocalTolerances(plant, P0, bGlobal, G);
-      self@SRDKF(plant, Ts, T, G, alpha, beta, delta, bLocal, Z, triggerMode);
+      self@SRDKF(plant, Ts, T, G, bLocal, Z);
     end
   end
 end

@@ -21,15 +21,14 @@
 %   c     - 1 to transmit, 0 otherwise
 function c = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar, Z)
 
-  z = y_i - C_i * x_bar;
-  nu = exp(-1/2 * z' * Z * z);
+  y_bar_i = C_i * x_bar;
+  z = y_i - y_bar_i;
+  nu = exp(-1/2 * z' * Z * z);  % Probability of idle
 
   zeta = rand;
-
   if zeta > nu
     c = 1;
   else
     c = 0;
   end
-
 end

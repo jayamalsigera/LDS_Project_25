@@ -54,10 +54,11 @@ dkfDelta = 0.5;
 klTolerance = 0.05;
 lfmKlTolerance = 0.05;
 
-% Stochastic trigger error-norm weight matrices (both in measurement space,
-% Z in S^m_{++} per Han et al. 2015 — m=3 for this 3D sensor model).
-errorNormWeightsClosed = 0.06 * eye(3);  % Z (closed-loop, innovation space)
-errorNormWeightsOpen = 0.06 * eye(3);    % Y (open-loop, raw-measurement space)
+% Stochastic trigger error-norm weight matrix (Han et al., 2015).
+% Differently than the paper, we use the estimated state discrepancy to
+% calculate the probability of idle in the trigger. That means we need to use
+% the state dimension, not the measurement dimension.
+errorNormWeights = 0.06 * eye(stateDim);  % Z
 
 %% Initial estimate
 % Prior matched to the distribution x0 is drawn from: mean E[x0] = 0 and
@@ -86,16 +87,12 @@ tuneRdkfDeltaGrid  = [0.1, 0.5, 1, 2.5];
 tuneRdkfAlphaFixed = 10;
 tuneRdkfBFixed     = 0.05;
 
-% Stochastic-trigger weight scale z (Z = z * eye(m)). The three z-sweeps need
-% grids that differ by orders of magnitude because the trigger fires with
-% probability 1 - exp(-1/2 z'Zz) evaluated on very different quantities:
-% closed-loop weights the innovation y - C x_bar (O(10)), open-loop weights the
-% raw measurement y (O(1e3), dominated by position). Grids picked to span
-% TX ~2%-95% with the RMSE knee resolved; SRDKF-Closed starts at 0.02 because
-% the robust layer destabilises when transmissions are starved below that.
-tuneSdkfZGrid       = [3e-3, 8e-3, 2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2];  % SDKF closed
-tuneSrdkfClosedZGrid = [2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2, 2.5, 5];      % SRDKF closed
-tuneSrdkfOpenZGrid   = [1e-8, 3e-8, 6e-8, 1e-7, 2e-7, 4e-7, 7e-7, 1.5e-6, 3e-6]; % SRDKF open (raw-measurement space)
+% Stochastic-trigger weight scale z (Z = z * eye(stateDim)).
+% Grids picked to span TX ~2%-95% with the RMSE knee resolved; SRDKF
+% starts at 0.02 because the robust layer destabilises when transmissions
+% are starved below that.
+tuneSdkfZGrid       = [3e-3, 8e-3, 2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2];  % SDKF
+tuneSrdkfZGrid = [2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2, 2.5, 5];      % SRDKF
 
 % Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
 % functions). b = 0 is the anchor (robust layer disabled); log grid through and
