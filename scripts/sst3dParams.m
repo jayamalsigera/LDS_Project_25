@@ -58,7 +58,7 @@ lfmKlTolerance = 0.05;
 % Differently than the paper, we use the estimated state discrepancy to
 % calculate the probability of idle in the trigger. That means we need to use
 % the state dimension, not the measurement dimension.
-errorNormWeights = 0.06 * eye(stateDim);  % Z
+errorNormWeights = 1 * eye(stateDim);  % Z
 
 %% Initial estimate
 % Prior matched to the distribution x0 is drawn from: mean E[x0] = 0 and
@@ -88,11 +88,7 @@ tuneRdkfAlphaFixed = 10;
 tuneRdkfBFixed     = 0.05;
 
 % Stochastic-trigger weight scale z (Z = z * eye(stateDim)).
-% Grids picked to span TX ~2%-95% with the RMSE knee resolved; SRDKF
-% starts at 0.02 because the robust layer destabilises when transmissions
-% are starved below that.
-tuneSdkfZGrid       = [3e-3, 8e-3, 2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2];  % SDKF
-tuneSrdkfZGrid = [2e-2, 4e-2, 8e-2, 0.15, 0.3, 0.6, 1.2, 2.5, 5];      % SRDKF
+tuneSdkfZGrid  = [1e-3, 5e-3, 1e-2, 5e-2, 0.1, 0.5, 1.0, 5.0, 10.0];
 
 % Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
 % functions). b = 0 is the anchor (robust layer disabled); log grid through and
