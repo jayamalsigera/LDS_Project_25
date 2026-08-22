@@ -29,6 +29,7 @@ classdef RDKF
     RMSE
     txRate
     theta_hist
+    theta_bar_hist
   end
 
   methods
@@ -72,6 +73,7 @@ classdef RDKF
       self.X_hat = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
       self.theta_hist = zeros(self.N, T + 1);
+      self.theta_bar_hist = zeros(self.N, T + 1);
     end
 
     %% Estimation Method
@@ -105,7 +107,8 @@ classdef RDKF
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
         [q_pred, Psi, theta_t] = self.getLocalPriors(q_fused, Omega_fused);
         self.theta_hist(:, t) = theta_t;
-        [q_bar, Psi_bar] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
+        [q_bar, Psi_bar, theta_bar_t] = self.updateGlobalPriors(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
+        self.theta_bar_hist(:, t) = theta_bar_t;
       end
 
       self.RMSE = calculateRmse(self.X_hat, X);
@@ -213,10 +216,11 @@ classdef RDKF
     end
 
     % Update the global priors used in the fusion rule when there is no transmission
-    function [q_bar_next, Psi_bar_next] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
+    function [q_bar_next, Psi_bar_next, theta_bar_vec] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_bar_next = zeros(self.n, self.N);
       Omega_bar_next = zeros(self.n, self.n, self.N);
       Psi_bar_next = zeros(self.n, self.n, self.N);
+      theta_bar_vec = zeros(self.N, 1);
       for i = 1:self.N
         if c_t(i)
           q_i_check = q_upd(:, i);
@@ -230,6 +234,7 @@ classdef RDKF
 
         % Risk Sensitivity Parameter
         theta_bar = findTheta(Omega_bar_next(:, :, i), self.b(i));
+        theta_bar_vec(i) = theta_bar;
 
         % Robust information pair
         Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n);

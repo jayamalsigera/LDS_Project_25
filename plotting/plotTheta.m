@@ -1,6 +1,6 @@
 function plotTheta(path)
-% plotTheta Re-create the Risk Sensitivity Parameter (theta) vs Time figure
-% for a saved estimateSST run.
+% plotTheta Re-create the Risk Sensitivity Parameter (theta and theta_bar) vs Time
+% figures for a saved estimateSST run.
 %
 % Usage:
 %   plotTheta('results/some_run.mat')
@@ -20,7 +20,7 @@ function plotTheta(path)
 
   % Spec for robust estimators only
   spec = {
-    'CRKF',             'crkf',             [0.30 0.65 0.90], '--'
+    % 'CRKF',             'crkf',             [0.30 0.65 0.90], '--'
     'RDKF',             'rdkf',             [0.49 0.18 0.56], '-'
     'RDKFLOC',          'rdkfloc',          [0.29 0.00 0.51], '-'
     'SRDKF-Open',       'srdkfOpen',        [0.47 0.67 0.19], ':'
@@ -31,8 +31,21 @@ function plotTheta(path)
 
   t = (0:T) * Ts;
 
+  if ~exist('results/figures', 'dir')
+    mkdir('results/figures');
+  end
+
+  % Plot theta (local priors)
+  plotMetric(t, results, spec, 'Theta', '\theta', 'theta_vs_time', isLfm);
+
+  % Plot theta_bar (global/no-transmit priors)
+  plotMetric(t, results, spec, 'ThetaBar', '\bar{\theta}', 'theta_bar_vs_time', isLfm);
+end
+
+function plotMetric(t, results, spec, suffix, symbolStr, fileBaseName, isLfm)
   figure;
   hold on;
+  hasData = false;
 
   for k = 1:size(spec, 1)
       label  = spec{k, 1};
@@ -40,12 +53,13 @@ function plotTheta(path)
       color  = spec{k, 3};
       style  = spec{k, 4};
 
-      field = [prefix 'Theta'];
+      field = [prefix suffix];
       if ~isfield(results, field)
           continue;
       end
 
       data = results.(field);
+      hasData = true;
 
       if strcmp(prefix, 'crkf')
           % CRKF data is (totalRuns, T+1)
@@ -64,26 +78,28 @@ function plotTheta(path)
           end
       end
 
-      plot(t, y, style, 'Color', color, 'LineWidth', 1.5, 'DisplayName', label);
+      semilogy(t, y, style, 'Color', color, 'LineWidth', 1.5, 'DisplayName', label);
   end
 
   hold off;
+  if ~hasData
+      close(gcf);
+      return;
+  end
+
   xlabel('Time (s)');
-  ylabel('Risk sensitivity parameter \theta');
+  ylabel(sprintf('Risk sensitivity parameter %s', symbolStr));
   if isLfm
-      title('Risk Sensitivity \theta vs Time (LFM data)');
+      title(sprintf('Risk Sensitivity %s vs Time (LFM data)', symbolStr));
   else
-      title('Risk Sensitivity \theta vs Time');
+      title(sprintf('Risk Sensitivity %s vs Time', symbolStr));
   end
   legend('Location', 'northeast');
   grid on;
 
-  if ~exist('results/figures', 'dir')
-    mkdir('results/figures');
-  end
   if isLfm
-    exportgraphics(gcf, 'results/figures/theta_vs_time_lfm.pdf', 'ContentType', 'vector');
+    exportgraphics(gcf, sprintf('results/figures/%s_lfm.pdf', fileBaseName), 'ContentType', 'vector');
   else
-    exportgraphics(gcf, 'results/figures/theta_vs_time.pdf', 'ContentType', 'vector');
+    exportgraphics(gcf, sprintf('results/figures/%s.pdf', fileBaseName), 'ContentType', 'vector');
   end
 end
