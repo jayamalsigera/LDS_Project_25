@@ -42,7 +42,10 @@ classdef DKF
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
 
-      self.W = calcMetropolisWeights(G);
+      % (Battistelly, et. all, 2018) uses Metropolis Weights, but we chose to
+      % adopt fusion weights from (Ghion & Zorzi, 2023) for direct comparison.
+      % self.W = calcMetropolisWeights(G);
+      self.W = calcFusionWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;
