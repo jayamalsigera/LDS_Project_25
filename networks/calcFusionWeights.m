@@ -38,7 +38,7 @@ function Pi = calcFusionWeights(G)
     N = numnodes(G);
     Pi = zeros(N, N);
 
-    % Get adjacency matrix. A(u, v) > 0 means there is an edge u -> v, so the
+    % Get adjacency matrix. A(i, j) > 0 means there is an edge i -> j, so the
     % IN-neighbors of i are the nonzeros of column i.
     A = adjacency(G, 'weighted');
 

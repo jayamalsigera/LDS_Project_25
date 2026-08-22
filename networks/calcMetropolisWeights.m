@@ -1,21 +1,20 @@
 %% Calculate Metropolis-Hastings weights for a graph
 %
 % The Metropolis weights are defined as:
-%   W(i,j) = 1 / (1 + max(deg(i), deg(j))) if j is an IN-neighbor of i
+%   W(i,j) = 1 / (1 + max(in_deg(i), out_deg(j))) if j is an IN-neighbor of i
 %   W(i,i) = 1 - sum(W(i,j) for j~=i)
 %
 % IMPORTANT — edge direction. `DKF.fusion`, `SDKF` and `DSEACP` all fuse over
 % `inedges(G, i)`, i.e. over the set of nodes that transmit *to* i. The weights
 % must be built over that same set or the row sums seen by the fusion loop fall
-% below 1 and information leaks away silently on any directed graph. In- and
-% out-neighborhoods coincide on a symmetric graph, which is why this stayed
-% latent — every graph the repo builds is symmetric. Same defect, and same fix,
-% as `calcFusionWeights`; see docs/rdkf-tx-saturation-analysis.md §6.4.1, §6.8.
+% below 1 and information leaks away silently on any directed graph. Furthermore,
+% on directed graphs we explicitly compare the receiver's in-degree with the
+% sender's out-degree.
 %
-% Note: `degrees` counts the self-loop that every node in these graphs carries,
-% so it is deg(i)+1 relative to the textbook Metropolis definition. That is
+% Note: The degree count includes the self-loop that every node in these graphs
+% carries, so it is deg+1 relative to the textbook Metropolis definition. That is
 % pre-existing behaviour and is left unchanged here so symmetric-graph results
-% stay bit-for-bit identical; only the edge direction is corrected.
+% stay bit-for-bit identical; only the edge direction handling is corrected.
 %
 % Inputs:
 %   G - graph object (directed or undirected)
@@ -32,15 +31,20 @@ function Pi = calcMetropolisWeights(G)
     % IN-neighbors of i are the nonzeros of column i.
     A = adjacency(G, 'weighted');
 
-    % In-degree of each node (includes the self-loop; see the header note)
-    degrees = sum(A, 1)';
+    % On a directed graph we must differentiate between in- and out-degrees.
+    % We use A > 0 to count topological edges rather than summing edge weights.
+    % Note: this still includes the self-loop if the graph carries one,
+    % preserving the pre-existing behaviour for symmetric graphs.
+    in_degrees = sum(A > 0, 1)';
+    out_degrees = sum(A > 0, 2);
 
     % Calculate weights for the in-neighbors of each node
     for i = 1:N
         for j = 1:N
             if i ~= j && A(j, i) > 0
-                % Metropolis weight for the edge j -> i
-                max_degree = max(degrees(i), degrees(j));
+                % Metropolis weight for the edge j -> i on a directed graph:
+                % we compare the receiver's in-degree with the sender's out-degree.
+                max_degree = max(in_degrees(i), out_degrees(j));
                 Pi(i, j) = 1 / (1 + max_degree);
             end
         end
