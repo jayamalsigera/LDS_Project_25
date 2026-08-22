@@ -55,13 +55,9 @@ klTolerance = 0.05;
 lfmKlTolerance = 0.05;
 
 % Stochastic trigger error-norm weight matrices (both in measurement space,
-% Z in S^m_{++} per Han et al. 2015 — m=3 for this 3D sensor model). The
-% closed-loop weight is set from the tuneSDKFClosed/tuneSRDKFClosed sweeps:
-% z=0.15 puts both closed triggers at ~34% TX, near the RMSE knee (the old
-% 1e-4 gave ~0.5% TX, starving the filter — see the recalibrated z grids
-% below). The open-loop weight already sits near saturation (~94% TX) at 1e-6.
-errorNormWeightsClosed = 0.15 * eye(3);  % Z (closed-loop, innovation space)
-errorNormWeightsOpen = 1e-6 * eye(3);    % Y (open-loop, raw-measurement space)
+% Z in S^m_{++} per Han et al. 2015 — m=3 for this 3D sensor model).
+errorNormWeightsClosed = 0.06 * eye(3);  % Z (closed-loop, innovation space)
+errorNormWeightsOpen = 0.06 * eye(3);    % Y (open-loop, raw-measurement space)
 
 %% Initial estimate
 % Prior matched to the distribution x0 is drawn from: mean E[x0] = 0 and
@@ -72,7 +68,6 @@ P0 = V0;
 
 %% Monte Carlo
 totalRuns = 200;
-
 totalTuneRuns = 50;
 
 %% Tuning grids (consumed by the tune* functions; see tuning/)
