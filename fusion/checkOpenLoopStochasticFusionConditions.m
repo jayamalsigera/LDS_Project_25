@@ -19,14 +19,12 @@
 %
 function c = checkOpenLoopStochasticFusionConditions(y, Z)
 
-  nu = exp(-1/2 * y' * Z * y);
+  mu = exp(-1/2 * y' * Z * y);  % Probability of idle
 
   zeta = rand;
-
-  if zeta > nu
+  if zeta > mu
     c = 1;
   else
     c = 0;
   end
-
 end

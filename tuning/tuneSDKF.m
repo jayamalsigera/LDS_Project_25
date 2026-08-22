@@ -1,6 +1,6 @@
-%% SDKF (closed-loop trigger) Hyperparameter Tuning
+%% SDKF Hyperparameter Tuning
 %
-%   tuneSDKFClosed()
+%   tuneSDKF()
 %
 % Sweeps the stochastic-trigger weight scale z, where Z = z * eye(m) and m
 % is the measurement dimension. Smaller z lowers the transmission
@@ -10,11 +10,11 @@
 %
 % Saved via saveRun and plotted by plotTuneRun. For a matched-rate
 % comparison against DKF, run this and tuneDKF, then overlay:
-%   plotTuneRun('results/tuneSDKFClosed_...mat', 'results/tuneDKF_...mat')
+%   plotTuneRun('results/tuneSDKF_...mat', 'results/tuneDKF_...mat')
 % (keep sensorCount = nodeCount so the stochastic trigger governs every node,
 % otherwise the deterministic relay trigger dominates).
 %
-function tuneSDKFClosed(varargin)
+function tuneSDKF(varargin)
 
   rng(42);
 
@@ -33,7 +33,7 @@ function tuneSDKFClosed(varargin)
 
   disp("Simulating target dynamics")
   plant = SingleTarget3dModel(P.Ts, P.sensorCount, P.noiseScale, P.T);
-  zDim  = P.dim;   % measurement rows per sensor (Z is zDim x zDim)
+  stateDim = 2 * P.dim; % Z is stateDim x stateDim
 
   %% Pre-generate trajectories so all configurations see the same data
   disp("Pre-generating Monte Carlo trajectories")
@@ -50,7 +50,7 @@ function tuneSDKFClosed(varargin)
   end
 
   disp("Running simulations...")
-  makeFilter = @(c) SDKF(plant, Ts, T, netGraph, P.dkfDelta, c.z * eye(zDim), 'closed');
+  makeFilter = @(c) SDKF(plant, Ts, T, netGraph, c.z * eye(stateDim));
   [meanRmse, finalRmse, meanTxRate, ssRmseMean, ssRmseStd, rmseCurves, txCurves] = ...
       evalConfigsMC(makeFilter, configs, samples, P.x0_hat, P.P0, T);
 
@@ -71,7 +71,7 @@ function tuneSDKFClosed(varargin)
     'ssRmseMean', ssRmseMean, 'ssRmseStd', ssRmseStd, ...
     'configs', {configs}, 'resultsTable', resultsTable);
   extras = struct( ...
-    'totalRuns', totalTuneRuns, 'filterName', 'SDKF-Closed', ...
+    'totalRuns', totalTuneRuns, 'filterName', 'SDKF', ...
     'zGrid', zGrid, ...
     'bases', struct('z', NaN));
   savedPath = saveRun(mfilename, P, extras, netGraph, results);

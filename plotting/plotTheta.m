@@ -22,10 +22,8 @@ function plotTheta(path)
   spec = {
     'RDKF',             'rdkf',             [0.49 0.18 0.56]
     'RDKFLOC',          'rdkfloc',          [0.29 0.00 0.51]
-    'SRDKF-Open',       'srdkfOpen',        [0.47 0.67 0.19]
-    'SRDKF-Closed',     'srdkfClosed',      [0.47 0.67 0.19]
-    'SRDKFLOC-Open',    'srdkflocOpen',     [0.15 0.40 0.10]
-    'SRDKFLOC-Closed',  'srdkflocClosed',   [0.15 0.40 0.10]
+    'SRDKF',            'srdkf',            [0.47 0.67 0.19]
+    'SRDKFLOC',         'srdkfloc',         [0.15 0.40 0.10]
   };
 
   t = (0:T) * Ts;

@@ -35,14 +35,12 @@ end
 % Computed according to (Zenere & Zorzi, 2018)
 function x = bisect(fun, b, thetaLow, thetaHigh, tol, maxIter)
   for k = 1:maxIter
+    x = 0.5 * (thetaLow + thetaHigh);
     if abs(thetaLow - thetaHigh) <= tol
       return
     end
 
-    x = 0.5 * (thetaLow + thetaHigh);
-    fx = fun(x);
-
-    if fx < b
+    if fun(x) < b
       thetaLow = x;
     else
       thetaHigh = x;

@@ -4,23 +4,19 @@
 % replaced by the stochastic event-triggered schedule from Han et al. (2015).
 % No robust (minimax) treatment — b = 0, so Psi = Omega everywhere.
 %
+% (Han et al., 2015) consider the sensor nodes primitive and the trigger is for
+% communicating with the estimator. (Battistely et al., 2018) assumes that each
+% node is capable of running the estimation logic, so the trigger is used to
+% propagate the state estimates.
+%
 % This serves as a direct comparison partner for SRDKF: same stochastic
 % trigger, same network fusion, but no model-uncertainty robustness.
-%
-% Negative-information fusion (Han et al. 2015, Thm 2, eqs 24-26): a node
-% always uses its OWN measurement fully. When a sensor neighbor j stays
-% silent, the receiving node reconstructs j's contribution with the
-% enlarged-noise pseudo-update on j's globally known prior — R_eff = R_j +
-% Z^-1, mean left at the prior, covariance still tightened — instead of the
-% discounted stale prior q_bar/(1+delta). Silence ("innovation was small") is
-% itself information. Validated standalone in tests/clsetKfUnitTest.m.
 %
 classdef SDKF
   properties
     Ts
     T
     % Tuning parameters
-    delta
     Z
     % Network
     G
@@ -39,17 +35,14 @@ classdef SDKF
     % Stats
     RMSE
     txRate
-    % 'open' or 'closed'
-    triggerMode
   end
 
   methods
-    function self = SDKF(plant, Ts, T, G, delta, Z, triggerMode)
+    function self = SDKF(plant, Ts, T, G, Z)
       self.Ts = Ts;
       self.T  = T;
       self.G  = G;
 
-      self.delta = delta;
       self.Z     = Z;
 
       self.N = numnodes(G);
@@ -72,8 +65,6 @@ classdef SDKF
 
       self.X_hat  = zeros(self.n, self.N, T + 1);
       self.txRate = zeros(self.T + 1, 1);
-
-      self.triggerMode = triggerMode;
     end
 
     %% Estimation
@@ -94,7 +85,7 @@ classdef SDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(q_bar, Omega_bar, y);
+        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Omega_bar);
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Omega_bar);
@@ -126,42 +117,26 @@ classdef SDKF
       end
     end
 
-    %% Information exchange — stochastic trigger (Han et al. 2015)
-    function c_t = exchange(self, q_bar, Omega_bar, y)
+    %% Information exchange
+    function c_t = exchange(self, X_hat, q_bar, Omega_bar)
       c_t = ones(self.N, 1);
       if any(isnan(Omega_bar), 'all')
-        return
+        return % Every node transmits on the first iteration
       end
 
       for i = 1:self.N
-        if ~self.G.Nodes(i, :).isSensor
-          c_t(i) = 0;
-          continue
-        end
-
-        idx = self.senBlock * (i - 1) + (1:self.senBlock);
-        y_i = y(idx);
-
-        switch lower(self.triggerMode)
-          case 'closed'
-            x_bar_i = Omega_bar(:, :, i) \ q_bar(:, i);
-            C_i     = self.C(idx, :);
-            c_t(i)  = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar_i, self.Z);
-
-          case 'open'
-            c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
-
-          otherwise
-            error('Unknown triggerMode. Use ''closed'' or ''open''.');
-        end
+        x_bar_i = Omega_bar(:, :, i) \ q_bar(:, i);
+        stateDelta = X_hat(:, i) - x_bar_i;
+        c_t(i) = checkStochasticTxRule(stateDelta, self.Z);
       end
     end
 
-    %% Information fusion
-    function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
-      q_fused     = zeros(self.n, self.N);
+    %% Information Pair Fusion
+    function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
+      q_fused = zeros(self.n, self.N);
       Omega_fused = zeros(self.n, self.n, self.N);
-      Zinv = self.Z \ eye(size(self.Z, 1));
+
+      Zinv = self.Z \ eye(self.n);
 
       for i = 1:self.N
         [~, nids] = inedges(self.G, i);
@@ -170,32 +145,20 @@ classdef SDKF
           w_ij = self.W(i, j);
 
           if (i == j) || c_t(j)
-            q_fused(:, i)       = q_fused(:, i)       + w_ij * q_upd(:, j);
+            % Node received active transmission, or it's the node's local update
+            q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
-          elseif self.G.Nodes(j, :).isSensor
-            % Silent sensor neighbor: reconstruct its contribution with Han's
-            % negative-information update on j's globally known prior. Silence
-            % => innovation was sub-threshold => mean stays at the prior x_bar_j
-            % while the covariance still tightens by C_j' inv(R_j + inv(Z)) C_j.
-            jdx  = self.senBlock * (j - 1) + (1:self.senBlock);
-            C_j  = self.C(jdx, :);
-            R_j  = self.R(jdx, jdx);
-            Reff = R_j + Zinv;
-            info = C_j' * (Reff \ C_j);
-
-            x_bar_j     = Omega_bar(:, :, j) \ q_bar(:, j);
-            q_recon     = q_bar(:, j)         + info * x_bar_j;
-            Omega_recon = Omega_bar(:, :, j)  + info;
-
-            q_fused(:, i)       = q_fused(:, i)       + w_ij * q_recon;
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_recon;
           else
-            % Silent non-sensor (relay) neighbor: no measurement, so silence
-            % carries no negative information — keep the discounted prior.
-            q_tilde     = (1 / (1 + self.delta)) * q_bar(:, j);
-            Omega_tilde = (1 / (1 + self.delta)) * Omega_bar(:, :, j);
+            % Unified reconstruction for ANY silent neighbor (sensor or relay):
+            % Reconstruct via state-covariance inflation: P_tilde = P_bar_j + Zinv
+            P_bar_j     = Psi_bar(:, :, j) \ eye(self.n);
+            P_tilde     = P_bar_j + Zinv;
+            Omega_tilde = P_tilde \ eye(self.n);
 
-            q_fused(:, i)       = q_fused(:, i)       + w_ij * q_tilde;
+            x_bar_j     = Psi_bar(:, :, j) \ q_bar(:, j);
+            q_tilde     = Omega_tilde * x_bar_j;
+
+            q_fused(:, i) = q_fused(:, i) + w_ij * q_tilde;
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_tilde;
           end
         end

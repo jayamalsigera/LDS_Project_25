@@ -22,8 +22,8 @@ function plotRMSEvsTXrate(path)
   %   Colors grouped by estimator family; line styles separate variants within a family.
   %   Centralized  → blue family    (CKF solid, CRKF dashed)
   %   Consensus    → red/orange     (DSEA-CP solid)
-  %   DKF family   → amber          (DKF solid, SDKF-Closed dashed, SDKF-Open dotted)
-  %   RDKF family  → purple/magenta (RDKF solid, SRDKF-Closed dashed, SRDKF-Open dotted)
+  %   DKF family   → amber          (DKF solid, SDKF solid)
+  %   RDKF family  → purple/magenta (RDKF solid, SRDKF solid)
   %   LOC variants → indigo / dark green (per-node local tolerances b^i)
   % RMSE data is results.[prefix 'Rmse']; TX rate is results.[prefix 'TxRate'],
   % which only the event-triggered / DKF-family filters record.
@@ -34,24 +34,18 @@ function plotRMSEvsTXrate(path)
     'DKF',              'dkf',              [0.93 0.69 0.13], '-',  true
     'RDKF',             'rdkf',             [0.49 0.18 0.56], '-',  true
     'RDKFLOC',          'rdkfloc',          [0.29 0.00 0.51], '-',  true
-    'SDKF-Open',        'sdkfOpen',         [0.10 0.75 0.65], ':',  true
-    'SDKF-Closed',      'sdkfClosed',       [0.10 0.75 0.65], '--', true
-    'SRDKF-Open',       'srdkfOpen',        [0.47 0.67 0.19], ':',  true
-    'SRDKF-Closed',     'srdkfClosed',      [0.47 0.67 0.19], '--', true
-    'SRDKFLOC-Open',    'srdkflocOpen',     [0.15 0.40 0.10], ':',  true
-    'SRDKFLOC-Closed',  'srdkflocClosed',   [0.15 0.40 0.10], '--', true
+    'SDKF',             'sdkf',             [0.10 0.75 0.65], '-', true
+    'SRDKF',            'srdkf',            [0.47 0.67 0.19], '-', true
+    'SRDKFLOC',         'srdkfloc',         [0.15 0.40 0.10], '-', true
   };
 
   % Comparison groups: {name, members}.
   groups = {
     'CKF vs CRKF',                             {'CKF', 'CRKF'};
     'CKF vs DSEA-CP vs DKF',                   {'CKF', 'DSEA-CP', 'DKF'};
-    'DKF vs SDKF-Open vs SRDKF-Open',          {'DKF', 'SDKF-Open', 'SRDKF-Open'};
-    'DKF vs SDKF-Closed vs SRDKF-Closed',      {'DKF', 'SDKF-Closed', 'SRDKF-Closed'};
+    'DKF vs SDKF vs SRDKF vs SRDKFLOC',        {'DKF', 'SDKF', 'SRDKF', 'SRDKFLOC'};
     'DKF vs RDKF vs RDKFLOC',                  {'DKF', 'RDKF', 'RDKFLOC'};
-    'DKF vs SRDKF-Open vs SRDKFLOC-Open',      {'DKF', 'SRDKF-Open', 'SRDKFLOC-Open'};
-    'DKF vs SRDKF-Closed vs SRDKFLOC-Closed',  {'DKF', 'SRDKF-Closed', 'SRDKFLOC-Closed'};
-    'CRKF vs RDKFLOC vs SRDKFLOC-Open',        {'CRKF', 'RDKFLOC', 'SRDKFLOC-Open'};
+    'CRKF vs RDKFLOC vs SRDKFLOC',             {'CRKF', 'RDKFLOC', 'SRDKFLOC'};
   };
 
   t = (0:T) * Ts;

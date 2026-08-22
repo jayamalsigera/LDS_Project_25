@@ -41,19 +41,13 @@ classdef SRDKF
     txRate
     theta_hist
     theta_bar_hist
-    % flag for open_loop ('open') vs closed_loop ('closed')
-    triggerMode
   end
 
   methods
-    function self = SRDKF(plant, Ts, T, G, alpha, beta, delta, b, Z, triggerMode)
+    function self = SRDKF(plant, Ts, T, G, b, Z)
       self.Ts = Ts;
       self.T = T;
       self.G = G;
-
-      self.alpha = alpha;
-      self.beta = beta;
-      self.delta = delta;
 
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
@@ -85,8 +79,6 @@ classdef SRDKF
       self.txRate = zeros(self.T + 1, 1);
       self.theta_hist = zeros(self.N, T + 1);
       self.theta_bar_hist = zeros(self.N, T + 1);
-
-      self.triggerMode = triggerMode;
     end
 
     %% Estimation Method
@@ -114,7 +106,7 @@ classdef SRDKF
           self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
         end
 
-        c_t = self.exchange(q_bar, Psi_bar, y);
+        c_t = self.exchange(self.X_hat(:, :, t), q_bar, Psi_bar);
         self.txRate(t) = sum(c_t) / self.N;
 
         [q_fused, Omega_fused] = self.fusion(c_t, q_upd, Omega_upd, q_bar, Psi_bar);
@@ -136,6 +128,8 @@ classdef SRDKF
 
       for i = 1:self.N
         if self.G.Nodes(i, :).isSensor
+          % C, R, and y are laid out with a senBlock-row block per node index
+          % (p_i = senBlock); non-sensor nodes still occupy their block as placeholders.
           idx = self.senBlock * (i - 1) + (1:self.senBlock);
 
           y_i = y(idx);
@@ -151,38 +145,17 @@ classdef SRDKF
       end
     end
 
-    %% Information Exchange
-    % While we don't have to transmit anything, in this step we're calculating
-    % c^i_t for all nodes.
-    function c_t = exchange(self, q_bar, Psi_bar, y)
+    %% Information exchange
+    function c_t = exchange(self, X_hat, q_bar, Omega_bar)
       c_t = ones(self.N, 1);
-      if any(isnan(Psi_bar), "all")
+      if any(isnan(Omega_bar), 'all')
         return % Every node transmits on the first iteration
       end
 
       for i = 1:self.N
-        if ~self.G.Nodes(i, :).isSensor
-          % Non-sensor nodes have no measurement, so neither stochastic
-          % trigger applies. They always share their global prior (c=0).
-          c_t(i) = 0;
-          continue
-        end
-
-        idx = self.senBlock * (i - 1) + (1:self.senBlock);
-        y_i = y(idx);
-
-        switch lower(self.triggerMode)
-          case 'closed'
-            x_bar_i = Psi_bar(:, :, i) \ q_bar(:, i);
-            C_i = self.C(idx, :);
-            c_t(i) = checkClosedLoopStochasticFusionConditions(y_i, C_i, x_bar_i, self.Z);
-
-          case 'open'
-            c_t(i) = checkOpenLoopStochasticFusionConditions(y_i, self.Z);
-
-          otherwise
-            error('Unknown triggerMode. Use ''closed'' or ''open''.');
-        end
+        x_bar_i = Omega_bar(:, :, i) \ q_bar(:, i);
+        stateDelta = X_hat(:, i) - x_bar_i;
+        c_t(i) = checkStochasticTxRule(stateDelta, self.Z);
       end
     end
 
@@ -190,7 +163,8 @@ classdef SRDKF
     function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_fused = zeros(self.n, self.N);
       Omega_fused = zeros(self.n, self.n, self.N);
-      Zinv = self.Z \ eye(size(self.Z, 1));
+
+      Zinv = self.Z \ eye(self.n);
 
       for i = 1:self.N
         [~, nids] = inedges(self.G, i);
@@ -199,33 +173,18 @@ classdef SRDKF
           pi_ij = self.Pi(i, j);
 
           if (i == j) || c_t(j)
-            % Node i has received from j or this is a self-loop (node has
-            % access to its own local info)
+            % Node received active transmission, or it's the node's local update
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
-          elseif self.G.Nodes(j, :).isSensor
-            % Silent sensor neighbor: reconstruct its contribution with Han's
-            % negative-information update on j's globally known robust prior.
-            % Silence => innovation was sub-threshold => mean stays at the
-            % prior x_bar_j while the information still tightens by
-            % C_j' inv(R_j + inv(Z)) C_j.
-            jdx  = self.senBlock * (j - 1) + (1:self.senBlock);
-            C_j  = self.C(jdx, :);
-            R_j  = self.R(jdx, jdx);
-            Reff = R_j + Zinv;
-            info = C_j' * (Reff \ C_j);
+          else
+            % Unified reconstruction for ANY silent neighbor (sensor or relay):
+            % Reconstruct via state-covariance inflation: P_tilde = P_bar_j + Zinv
+            P_bar_j     = Psi_bar(:, :, j) \ eye(self.n);
+            P_tilde     = P_bar_j + Zinv;
+            Omega_tilde = P_tilde \ eye(self.n);
 
             x_bar_j     = Psi_bar(:, :, j) \ q_bar(:, j);
-            q_recon     = q_bar(:, j)        + info * x_bar_j;
-            Omega_recon = Psi_bar(:, :, j)   + info;
-
-            q_fused(:, i) = q_fused(:, i) + pi_ij * q_recon;
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_recon;
-          else
-            % Silent non-sensor (relay) neighbor: no measurement, so silence
-            % carries no negative information — keep the discounted prior.
-            q_tilde = (1 / (1 + self.delta)) * q_bar(:, j);
-            Omega_tilde = (1 / (1 + self.delta)) * Psi_bar(:, :, j);
+            q_tilde     = Omega_tilde * x_bar_j;
 
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
@@ -233,6 +192,7 @@ classdef SRDKF
         end
       end
     end
+
 
     %% Prediction Step
     function [q_pred, Psi, theta_vec] = getLocalPriors(self, q_fused, Omega_fused)
