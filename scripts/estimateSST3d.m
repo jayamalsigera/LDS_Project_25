@@ -100,11 +100,17 @@ srdkflocOpenTxRate   = zeros(totalRuns, T + 1);
 
 crkfTheta            = zeros(totalRuns, T + 1);
 rdkfTheta            = zeros(totalRuns, nodeCount, T + 1);
+rdkfThetaBar         = zeros(totalRuns, nodeCount, T + 1);
 rdkflocTheta         = zeros(totalRuns, nodeCount, T + 1);
+rdkflocThetaBar      = zeros(totalRuns, nodeCount, T + 1);
 srdkfClosedTheta     = zeros(totalRuns, nodeCount, T + 1);
+srdkfClosedThetaBar  = zeros(totalRuns, nodeCount, T + 1);
 srdkfOpenTheta       = zeros(totalRuns, nodeCount, T + 1);
+srdkfOpenThetaBar    = zeros(totalRuns, nodeCount, T + 1);
 srdkflocClosedTheta  = zeros(totalRuns, nodeCount, T + 1);
+srdkflocClosedThetaBar = zeros(totalRuns, nodeCount, T + 1);
 srdkflocOpenTheta    = zeros(totalRuns, nodeCount, T + 1);
+srdkflocOpenThetaBar = zeros(totalRuns, nodeCount, T + 1);
 
 tic
 
@@ -126,6 +132,7 @@ parfor run = 1:totalRuns
   rdkfRmse(run, :)   = rdkfRun.RMSE;
   rdkfTxRate(run, :) = rdkfRun.txRate;
   rdkfTheta(run, :, :) = rdkfRun.theta_hist;
+  rdkfThetaBar(run, :, :) = rdkfRun.theta_bar_hist;
 
   sdkfClosedRun = sdkfClosed.estimate(x0_hat, P0, s.X, s.Y);
   sdkfClosedRmse(run, :)   = sdkfClosedRun.RMSE;
@@ -139,26 +146,31 @@ parfor run = 1:totalRuns
   srdkfClosedRmse(run, :)   = srdkfClosedRun.RMSE;
   srdkfClosedTxRate(run, :) = srdkfClosedRun.txRate;
   srdkfClosedTheta(run, :, :) = srdkfClosedRun.theta_hist;
+  srdkfClosedThetaBar(run, :, :) = srdkfClosedRun.theta_bar_hist;
 
   srdkfOpenRun = srdkfOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkfOpenRmse(run, :)   = srdkfOpenRun.RMSE;
   srdkfOpenTxRate(run, :) = srdkfOpenRun.txRate;
   srdkfOpenTheta(run, :, :) = srdkfOpenRun.theta_hist;
+  srdkfOpenThetaBar(run, :, :) = srdkfOpenRun.theta_bar_hist;
 
   rdkflocRun = rdkfloc.estimate(x0_hat, P0, s.X, s.Y);
   rdkflocRmse(run, :)   = rdkflocRun.RMSE;
   rdkflocTxRate(run, :) = rdkflocRun.txRate;
   rdkflocTheta(run, :, :) = rdkflocRun.theta_hist;
+  rdkflocThetaBar(run, :, :) = rdkflocRun.theta_bar_hist;
 
   srdkflocClosedRun = srdkflocClosed.estimate(x0_hat, P0, s.X, s.Y);
   srdkflocClosedRmse(run, :)   = srdkflocClosedRun.RMSE;
   srdkflocClosedTxRate(run, :) = srdkflocClosedRun.txRate;
   srdkflocClosedTheta(run, :, :) = srdkflocClosedRun.theta_hist;
+  srdkflocClosedThetaBar(run, :, :) = srdkflocClosedRun.theta_bar_hist;
 
   srdkflocOpenRun = srdkflocOpen.estimate(x0_hat, P0, s.X, s.Y);
   srdkflocOpenRmse(run, :)   = srdkflocOpenRun.RMSE;
   srdkflocOpenTxRate(run, :) = srdkflocOpenRun.txRate;
   srdkflocOpenTheta(run, :, :) = srdkflocOpenRun.theta_hist;
+  srdkflocOpenThetaBar(run, :, :) = srdkflocOpenRun.theta_bar_hist;
 end
 fprintf('Elapsed: %.3f s\n', toc);
 
@@ -177,6 +189,9 @@ results = struct( ...
   'srdkflocClosedTxRate', srdkflocClosedTxRate, 'srdkflocOpenTxRate', srdkflocOpenTxRate, ...
   'crkfTheta', crkfTheta, 'rdkfTheta', rdkfTheta, 'rdkflocTheta', rdkflocTheta, ...
   'srdkfClosedTheta', srdkfClosedTheta, 'srdkfOpenTheta', srdkfOpenTheta, ...
-  'srdkflocClosedTheta', srdkflocClosedTheta, 'srdkflocOpenTheta', srdkflocOpenTheta);
+  'srdkflocClosedTheta', srdkflocClosedTheta, 'srdkflocOpenTheta', srdkflocOpenTheta, ...
+  'rdkfThetaBar', rdkfThetaBar, 'rdkflocThetaBar', rdkflocThetaBar, ...
+  'srdkfClosedThetaBar', srdkfClosedThetaBar, 'srdkfOpenThetaBar', srdkfOpenThetaBar, ...
+  'srdkflocClosedThetaBar', srdkflocClosedThetaBar, 'srdkflocOpenThetaBar', srdkflocOpenThetaBar);
 extras = struct('totalRuns', totalRuns, 'bLocal', bLocal);
 savedPath = saveRun(mfilename, P, extras, netGraph, results);
