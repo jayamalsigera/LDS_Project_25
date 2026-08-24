@@ -88,7 +88,8 @@ tuneRdkfAlphaFixed = 10;
 tuneRdkfBFixed     = 0.05;
 
 % Stochastic-trigger weight scale z (Z = z * eye(stateDim)).
-tuneSdkfZGrid  = [1e-3, 5e-3, 1e-2, 5e-2, 0.1, 0.5, 1.0, 5.0, 10.0];
+% tuneSdkfZGrid      = [1e-3, 5e-3, 1e-2, 5e-2, 0.1, 0.5, 1.0, 5.0, 10.0];
+tuneSdkfZGrid      = logspace(-3,2,12);
 
 % Robust KL-tolerance b sweep on least-favorable data (shared by the *bLfm
 % functions). b = 0 is the anchor (robust layer disabled); log grid through and
