@@ -4,10 +4,8 @@
 %
 function [q_out, Psi_out, Omega_out, theta] = predictRobustFusion(q_in, Omega_in, A, Q, b)
 
-  Qinv = Q \ eye(size(Q));
-
-  % Nominal information prediction
-  Omega_out =  Qinv -  Qinv * A / (A' *  Qinv * A + Omega_in) * A' *  Qinv;
+  % Nominal information matrix
+  Omega_out = predictOmega(Omega_in, A, Q);
 
   % Find theta such that gamma(Omega_out, theta) = b
   theta = findTheta(Omega_out, b);

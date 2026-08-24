@@ -188,7 +188,7 @@ classdef DKF
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
+        Omega_pred(:, :, i) = predictOmega(Omega_i_F, self.A, self.Q);
 
         q_pred(:, i) = Omega_pred(:, :, i) * self.A * (Omega_i_F \ q_i_F);
       end
@@ -208,19 +208,10 @@ classdef DKF
           Omega_i_check = Omega_bar(:, :, i);
         end
 
-        Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
+        Omega_bar_next(:, :, i) = predictOmega(Omega_i_check, self.A, self.Q);
 
         q_bar_next(:, i) = Omega_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check);
       end
-    end
-
-    function newOmega = updateOmega(self, Omega)
-      invQ = self.Q \ eye(self.n);
-      invQA = invQ * self.A;
-      % TODO: Review variable name
-      foo = (Omega + (self.A' * invQA)) \ eye(self.n);
-
-      newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
     end
   end
 end

@@ -171,7 +171,7 @@ classdef SDKF
       Omega_pred = zeros(self.n, self.n, self.N);
 
       for i = 1:self.N
-        Omega_pred(:, :, i) = self.updateOmega(Omega_fused(:, :, i));
+        Omega_pred(:, :, i) = predictOmega(Omega_fused(:, :, i), self.A, self.Q);
         q_pred(:, i)        = Omega_pred(:, :, i) * self.A * (Omega_fused(:, :, i) \ q_fused(:, i));
       end
     end
@@ -190,16 +190,9 @@ classdef SDKF
           Omega_check = Omega_bar(:, :, i);
         end
 
-        Omega_bar_next(:, :, i) = self.updateOmega(Omega_check);
+        Omega_bar_next(:, :, i) = predictOmega(Omega_check, self.A, self.Q);
         q_bar_next(:, i)        = Omega_bar_next(:, :, i) * self.A * (Omega_check \ q_check);
       end
-    end
-
-    function newOmega = updateOmega(self, Omega)
-      invQ  = self.Q \ eye(self.n);
-      invQA = invQ * self.A;
-      foo   = (Omega + self.A' * invQA) \ eye(self.n);
-      newOmega = invQ - invQA * foo * invQA';
     end
   end
 end
