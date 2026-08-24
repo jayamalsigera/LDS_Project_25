@@ -1,8 +1,8 @@
 %% Calculate Metropolis-Hastings weights for a graph
 %
 % The Metropolis weights are defined as:
-%   W(i,j) = 1 / (1 + max(in_deg(i), out_deg(j))) if j is an IN-neighbor of i
-%   W(i,i) = 1 - sum(W(i,j) for j~=i)
+%   Pi(i,j) = 1 / (1 + max(in_deg(i), out_deg(j))) if j is an IN-neighbor of i
+%   Pi(i,i) = 1 - sum(Pi(i,j) for j~=i)
 %
 % IMPORTANT — edge direction. `DKF.fusion`, `SDKF` and `DSEACP` all fuse over
 % `inedges(G, i)`, i.e. over the set of nodes that transmit *to* i. The weights

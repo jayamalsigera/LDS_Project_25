@@ -20,9 +20,9 @@ classdef SDKF
     Z
     % Network
     G
-    W
     N
     S
+    Pi
     % State estimate history
     X_hat
     % Model matrices
@@ -48,7 +48,7 @@ classdef SDKF
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
 
-      self.W = calcFusionWeights(G);
+      self.Pi = calcFusionWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;
@@ -142,12 +142,12 @@ classdef SDKF
         [~, nids] = inedges(self.G, i);
 
         for j = nids'
-          w_ij = self.W(i, j);
+          pi_ij = self.Pi(i, j);
 
           if (i == j) || c_t(j)
             % Node received active transmission, or it's the node's local update
-            q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
+            q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
             % Unified reconstruction for ANY silent neighbor (sensor or relay):
             % Reconstruct via state-covariance inflation: P_tilde = P_bar_j + Zinv
@@ -158,8 +158,8 @@ classdef SDKF
             x_bar_j     = Psi_bar(:, :, j) \ q_bar(:, j);
             q_tilde     = Omega_tilde * x_bar_j;
 
-            q_fused(:, i) = q_fused(:, i) + w_ij * q_tilde;
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_tilde;
+            q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
           end
         end
       end

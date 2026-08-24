@@ -12,7 +12,7 @@ classdef DKF
     delta
     % Network Graph and Parameters
     G
-    W
+    Pi
     N
     S
     % State estimate history
@@ -44,8 +44,8 @@ classdef DKF
 
       % (Battistelly, et. all, 2018) uses Metropolis Weights, but we chose to
       % adopt fusion weights from (Ghion & Zorzi, 2023) for direct comparison.
-      % self.W = calcMetropolisWeights(G);
-      self.W = calcFusionWeights(G);
+      % self.Pi = calcMetropolisWeights(G);
+      self.Pi = calcFusionWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;
@@ -161,19 +161,19 @@ classdef DKF
         [~, nids] = inedges(self.G, i);
 
         for j = nids'
-          w_ij = self.W(i, j);
+          pi_ij = self.Pi(i, j);
 
           if (i == j) || c_t(j)
             % Node i has received from j or this is a self-loop (node has
             % access to its own local info)
-            q_fused(:, i) = q_fused(:, i) + w_ij * q_upd(:, j);
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_upd(:, :, j);
+            q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
             q_tilde = (1 / (1 + self.delta)) * q_bar(:, j);
             Omega_tilde = (1 / (1 + self.delta)) * Omega_bar(:, :, j);
 
-            q_fused(:, i) = q_fused(:, i) + w_ij * q_tilde;
-            Omega_fused(:, :, i) = Omega_fused(:, :, i) + w_ij * Omega_tilde;
+            q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
+            Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
           end
         end
       end

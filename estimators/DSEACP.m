@@ -8,10 +8,10 @@ classdef DSEACP
     T
     % Network Graph and Parameters
     G
-    W
     L
     N
     S
+    Pi
     % State estimate history
     X_hat
     % Model Matrices
@@ -35,7 +35,7 @@ classdef DSEACP
       self.N = numnodes(G);
       self.S = sum(G.Nodes.isSensor);
 
-      self.W = calcMetropolisWeights(G);
+      self.Pi = calcMetropolisWeights(G);
 
       self.A = plant.A;
       self.C = plant.C;
@@ -118,10 +118,10 @@ classdef DSEACP
             q_j = q_cons(:, j, l - 1);
             Omega_j = Omega_cons(:, :, j, l - 1);
 
-            w_ij = self.W(i, j);
+            pi_ij = self.Pi(i, j);
 
-            q_cons(:, i, l) = q_cons(:, i, l) + w_ij * q_j;
-            Omega_cons(:, :, i, l) = Omega_cons(:, :, i, l) + w_ij * Omega_j;
+            q_cons(:, i, l) = q_cons(:, i, l) + pi_ij * q_j;
+            Omega_cons(:, :, i, l) = Omega_cons(:, :, i, l) + pi_ij * Omega_j;
           end
 
         end
