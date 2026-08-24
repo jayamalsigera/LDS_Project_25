@@ -177,15 +177,19 @@ classdef SRDKF
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
-            % Unified reconstruction for ANY silent neighbor (sensor or relay):
-            % Reconstruct via state-covariance inflation: P_tilde = P_bar_j + Zinv
-            P_bar_j     = Psi_bar(:, :, j) \ eye(self.n);
-            P_tilde     = P_bar_j + Zinv;
-            Omega_tilde = P_tilde \ eye(self.n);
+            % Reconstruct silent neighbor j using the least-favorable prior (Psi_bar, q_bar)
+            Psi_bar_j = Psi_bar(:, :, j);
 
-            x_bar_j     = Psi_bar(:, :, j) \ q_bar(:, j);
+            % Compute Omega_tilde using Woodbury on the robust bound P_tilde = Psi_bar^-1 + Z^-1.
+            % This guarantees statistical consistency under both model and trigger uncertainty.
+            Omega_tilde = Psi_bar_j - Psi_bar_j * ((Psi_bar_j + self.Z) \ Psi_bar_j);
+
+            % Under symmetric trigger, E[e_t | silent] = 0. We reconstruct the state using
+            % the least-favorable mean x_bar and project it via our virtual Omega_tilde.
+            x_bar_j     = Psi_bar_j \ q_bar(:, j);
             q_tilde     = Omega_tilde * x_bar_j;
 
+            % Accumulate the robust reconstructed virtual pair into node i's fused state
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
           end
