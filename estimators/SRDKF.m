@@ -228,7 +228,7 @@ classdef SRDKF
           Omega_i_check = Psi_bar(:, :, i);
         end
 
-        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = predictNoTransmit( ...
+        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = predictRobustFusion( ...
           q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
 
         q_bar_next(:, i) = q_i_bar;

@@ -1,20 +1,20 @@
-%% Robust prediction step for one node
-% Based on eq. (12) in Ghion–Zorzi (2023)
-
-function [q_pred, Psi_pred, Omega_pred, theta] = predictRobustFusion(q_fused, Omega_fused, A, Q, b)
+%% Robust prediction and propagation step for one node
+%
+% This function serves both eqs. (12) and (14) in (Ghion & Zorzi, 2023).
+%
+function [q_out, Psi_out, Omega_out, theta] = predictRobustFusion(q_in, Omega_in, A, Q, b)
 
   Qinv = Q \ eye(size(Q));
 
   % Nominal information prediction
-  Omega_pred =  Qinv -  Qinv * A / (A' *  Qinv * A + Omega_fused) * A' *  Qinv;
+  Omega_out =  Qinv -  Qinv * A / (A' *  Qinv * A + Omega_in) * A' *  Qinv;
 
-  % Find theta such that gamma(Omega_pred, theta) = b
-  theta = findTheta(Omega_pred, b);
+  % Find theta such that gamma(Omega_out, theta) = b
+  theta = findTheta(Omega_out, b);
 
   % Least-favorable information matrix
-  Psi_pred = Omega_pred - theta * eye(size(Omega_pred));
+  Psi_out = Omega_out - theta * eye(size(Omega_out));
 
   % Robust predicted information vector
-  q_pred = Psi_pred * A * (Omega_fused \ q_fused);
-
+  q_out = Psi_out * A * (Omega_in \ q_in);
 end

@@ -195,7 +195,6 @@ classdef RDKF
     %% Prediction Step
     function [q_pred, Psi, theta_vec] = getLocalPriors(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
-      Omega_pred = zeros(self.n, self.n, self.N);
       Psi = zeros(self.n, self.n, self.N);
       theta_vec = zeros(self.N, 1);
 
@@ -203,24 +202,21 @@ classdef RDKF
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        Omega_pred(:, :, i) = self.updateOmega(Omega_i_F);
+        [q_i_pred, Psi_i_pred, ~, theta_i] = predictRobustFusion( ...
+          q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
 
-        % Risk Sensitivity Parameter
-        theta = findTheta(Omega_pred(:, :, i), self.b(i));
-        theta_vec(i) = theta;
-
-        % Robust information Pair
-        Psi(:, :, i) = Omega_pred(:, :, i) - theta * eye(self.n);
-        q_pred(:, i) = Psi(:, :, i) * self.A * (Omega_i_F \ q_i_F);
+        q_pred(:, i) = q_i_pred;
+        Psi(:, :, i) = Psi_i_pred;
+        theta_vec(i) = theta_i;
       end
     end
 
     % Update the global priors used in the fusion rule when there is no transmission
     function [q_bar_next, Psi_bar_next, theta_bar_vec] = updateGlobalPriors(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
       q_bar_next = zeros(self.n, self.N);
-      Omega_bar_next = zeros(self.n, self.n, self.N);
       Psi_bar_next = zeros(self.n, self.n, self.N);
       theta_bar_vec = zeros(self.N, 1);
+
       for i = 1:self.N
         if c_t(i)
           q_i_check = q_upd(:, i);
@@ -230,25 +226,13 @@ classdef RDKF
           Omega_i_check = Psi_bar(:, :, i);
         end
 
-        Omega_bar_next(:, :, i) = self.updateOmega(Omega_i_check);
+        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = predictRobustFusion( ...
+          q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
 
-        % Risk Sensitivity Parameter
-        theta_bar = findTheta(Omega_bar_next(:, :, i), self.b(i));
-        theta_bar_vec(i) = theta_bar;
-
-        % Robust information pair
-        Psi_bar_next(:, :, i) = Omega_bar_next(:, :, i) - theta_bar * eye(self.n);
-        q_bar_next(:, i) = Psi_bar_next(:, :, i) * self.A * (Omega_i_check \ q_i_check);
+        q_bar_next(:, i) = q_i_bar;
+        Psi_bar_next(:, :, i) = Psi_i_bar;
+        theta_bar_vec(i) = theta_i_bar;
       end
-    end
-
-    function newOmega = updateOmega(self, Omega)
-      invQ = self.Q \ eye(self.n);
-      invQA = invQ * self.A;
-      % TODO: Review variable name
-      foo = (Omega + (self.A' * invQA)) \ eye(self.n);
-
-      newOmega = invQ - invQA * foo * invQA'; % Assuming Q = Q'
     end
   end
 end
