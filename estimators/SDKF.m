@@ -132,11 +132,9 @@ classdef SDKF
     end
 
     %% Information Pair Fusion
-    function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Psi_bar)
+    function [q_fused, Omega_fused] = fusion(self, c_t, q_upd, Omega_upd, q_bar, Omega_bar)
       q_fused = zeros(self.n, self.N);
       Omega_fused = zeros(self.n, self.n, self.N);
-
-      Zinv = self.Z \ eye(self.n);
 
       for i = 1:self.N
         [~, nids] = inedges(self.G, i);
@@ -149,15 +147,19 @@ classdef SDKF
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_upd(:, j);
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_upd(:, :, j);
           else
-            % Unified reconstruction for ANY silent neighbor (sensor or relay):
-            % Reconstruct via state-covariance inflation: P_tilde = P_bar_j + Zinv
-            P_bar_j     = Psi_bar(:, :, j) \ eye(self.n);
-            P_tilde     = P_bar_j + Zinv;
-            Omega_tilde = P_tilde \ eye(self.n);
+            % Reconstruct silent neighbor j using only synchronized prior (Omega_bar, q_bar)
+            Omega_bar_j = Omega_bar(:, :, j);
 
-            x_bar_j     = Psi_bar(:, :, j) \ q_bar(:, j);
+            % Compute Omega_tilde using Woodbury on the conservative bound P_tilde = P_bar + Z^-1.
+            % This guarantees statistical consistency (Omega_tilde <= Omega_neighbor) and avoids inversions.
+            Omega_tilde = Omega_bar_j - Omega_bar_j * ((Omega_bar_j + self.Z) \ Omega_bar_j);
+
+            % Under symmetric trigger, E[e_t | silent] = 0. We convert prior mean x_bar back
+            % to information space using the adjusted conservative precision Omega_tilde.
+            x_bar_j     = Omega_bar_j \ q_bar(:, j);
             q_tilde     = Omega_tilde * x_bar_j;
 
+            % Accumulate the reconstructed virtual pair into node i's fused state
             q_fused(:, i) = q_fused(:, i) + pi_ij * q_tilde;
             Omega_fused(:, :, i) = Omega_fused(:, :, i) + pi_ij * Omega_tilde;
           end
