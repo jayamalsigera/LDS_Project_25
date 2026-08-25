@@ -202,7 +202,7 @@ classdef RDKF
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        [q_i_pred, Psi_i_pred, ~, theta_i] = predictRobustFusion( ...
+        [q_i_pred, Psi_i_pred, ~, theta_i] = doRobustPrediction( ...
           q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
 
         q_pred(:, i) = q_i_pred;
@@ -226,7 +226,7 @@ classdef RDKF
           Omega_i_check = Psi_bar(:, :, i);
         end
 
-        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = predictRobustFusion( ...
+        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = doRobustPrediction( ...
           q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
 
         q_bar_next(:, i) = q_i_bar;
