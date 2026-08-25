@@ -1,6 +1,6 @@
 %% Centralized Robust Kalman Filter (CRKF)
 %
-% Centralized (single-node) version of the robust minimax filter from
+% Centralized (single estimator) version of the robust minimax filter from
 % Ghion & Zorzi (2023). All sensor outputs are processed together, so this
 % serves as a sanity check and performance upper bound for the distributed
 % RDKF / SRDKF: a well-tuned RDKF should approach but never exceed CRKF.
@@ -22,6 +22,8 @@ classdef CRKF
     Q
     R
     n
+    % Precomputed measurement info term
+    CtRinvC
     % State estimate history
     x_hat
     % Stats
@@ -44,49 +46,36 @@ classdef CRKF
 
       self.x_hat = zeros(self.n, T + 1);
       self.theta_hist = zeros(1, T + 1);
+
+      % Precompute C'R^{-1}C (R constant)
+      self.CtRinvC = self.C' * (self.R \ self.C);
     end
 
     %% Estimation
     function self = estimate(self, x0_hat, P0, X, Y)
-      Omega = P0 \ eye(self.n);
-      q     = Omega * x0_hat;
+      Omega_pred = P0 \ eye(self.n);
+      q_pred     = Omega_pred * x0_hat;
 
-      self.x_hat(:, 1) = x0_hat;
+      for t = 1:self.T + 1
+        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, Y(:, t));
+        self.x_hat(:, t) = Omega_upd \ q_upd;
 
-      for t = 2:self.T + 1
-        % Prediction (robust)
-        [q, Omega, theta_t] = self.prediction(q, Omega);
+        [q_pred, Omega_pred, theta_t] = self.prediction(q_upd, Omega_upd);
         self.theta_hist(t) = theta_t;
-
-        % Correction
-        y = Y(:, t);
-        [q, Omega] = self.correction(q, Omega, y);
-
-        self.x_hat(:, t) = Omega \ q;
       end
 
       self.RMSE = calculateRmse(reshape(self.x_hat, self.n, 1, []), X);
     end
 
-    %% Robust prediction step — eq. (8) in Ghion & Zorzi (2023)
-    function [q_pred, Psi_pred, theta] = prediction(self, q, Omega)
-      Qinv = self.Q \ eye(self.n);
-
-      % Nominal information prediction
-      Omega_pred = Qinv - Qinv * self.A / (self.A' * Qinv * self.A + Omega) * self.A' * Qinv;
-
-      % Risk-sensitivity parameter
-      theta = findTheta(Omega_pred, self.b);
-
-      % Least-favorable information matrix and vector
-      Psi_pred = Omega_pred - theta * eye(self.n);
-      q_pred   = Psi_pred * self.A * (Omega \ q);
+    %% Correction step
+    function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
+      Omega_upd = Omega_pred + self.CtRinvC;
+      q_upd     = q_pred     + self.C' * (self.R \ y);
     end
 
-    %% Correction step (same as CKF)
-    function [q_upd, Omega_upd] = correction(self, q_pred, Omega_pred, y)
-      Omega_upd = Omega_pred + self.C' * (self.R \ self.C);
-      q_upd     = q_pred     + self.C' * (self.R \ y);
+    %% Robust Prediction according to (Ghion & Zorzi, 2023)
+    function [q_pred, Psi_pred, theta] = prediction(self, q_upd, Omega_upd)
+      [q_pred, Psi_pred, ~, theta] = doRobustPrediction(q_upd, Omega_upd, self.A, self.Q, self.b);
     end
   end
 end

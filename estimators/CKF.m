@@ -3,11 +3,6 @@ classdef CKF
   properties
     Ts
     T
-    % Information Pair history
-    q % n x (T+1)
-    Omega % n x n x (T+1)
-    % State estimate history
-    x_hat % n x (T+1)
     % Model Matrices
     A
     C
@@ -16,6 +11,8 @@ classdef CKF
     n
     % Precomputed measurement info term
     CtRinvC
+    % State estimate history
+    x_hat % n x (T+1)
     % Stats
     RMSE
   end
@@ -32,8 +29,6 @@ classdef CKF
 
       self.n = plant.n;
 
-      self.Omega = zeros(self.n, self.n, T + 1);
-      self.q = zeros(self.n, T + 1);
       self.x_hat = zeros(self.n, T + 1);
 
       % Precompute C'R^{-1}C (R constant)
@@ -43,41 +38,30 @@ classdef CKF
     %% Estimation Method
     function self = estimate(self, x0_hat, P0, X, Y)
         %Convert initial parameters to information form
-      self.Omega(:, :, 1) = P0 \ eye(self.n); % inv(P0)
-      self.q(:, 1) = self.Omega(:, :, 1) * x0_hat;
-      self.x_hat(:, 1) = x0_hat;
+      Omega_pred = P0 \ eye(self.n); % inv(P0)
+      q_pred     = Omega_pred * x0_hat;
 
-      for t = 2:self.T + 1
-        t_prev = t - 1; % index of previous filtered
-
-        Omega_prev = self.Omega(:, :, t_prev);
-        q_prev = self.q(:, t_prev);
-
-
-        [q_pred, Omega_pred] = self.prediction(q_prev, Omega_prev); %Prediction Step
-
-        y = Y(:, t);
-        [q_upd, Omega_upd] = self.update(y, q_pred, Omega_pred); %Correction
-
-        %Return to normal statespace form
+      for t = 1:self.T + 1
+        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, Y(:, t));
         self.x_hat(:, t) = Omega_upd \ q_upd;
-        self.q(:, t) = q_upd;
-        self.Omega(:, :, t) = Omega_upd;
+
+        [q_pred, Omega_pred] = self.prediction(q_upd, Omega_upd);
       end
 
       self.RMSE = calculateRmse(reshape(self.x_hat, self.n, 1, []), X);
     end
 
-    %% Correction Step
-    function [q_upd, Omega_upd] = update(self, y_t, q_pred, Omega_pred)
+    %% Correction step
+    function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
       Omega_upd = Omega_pred + self.CtRinvC;
-      q_upd = q_pred + self.C' * (self.R \ y_t);
+      q_upd     = q_pred     + self.C' * (self.R \ y);
     end
 
     %% Prediction Step
-    function [q_pred, Omega_pred] = prediction(self, q_prev, Omega_prev)
-      x_prev = Omega_prev \ q_prev;
-      P_prev = Omega_prev \ eye(self.n);
+    % TODO: Maybe there's a way to do this using Woodbury's identity?
+    function [q_pred, Omega_pred] = prediction(self, q_upd, Omega_upd)
+      x_prev = Omega_upd \ q_upd;
+      P_prev = Omega_upd \ eye(self.n);
 
       x_pred = self.A * x_prev;
       P_pred = self.A * P_prev * self.A' + self.Q;

@@ -9,7 +9,7 @@
 % enlarged-noise pseudo-update on j's globally known (robust) prior — R_eff =
 % R_j + Z^-1, mean left at the prior, information still tightened — instead of
 % the discounted stale prior q_bar/(1+delta). The robust prediction layer
-% (predictRobustFusion / predictNoTransmit, KL tolerance b) is unchanged, so
+% (doRobustPrediction / predictNoTransmit, KL tolerance b) is unchanged, so
 % b = 0 still recovers SDKF. Validated standalone in tests/clsetKfUnitTest.m.
 %
 classdef SRDKF
@@ -208,7 +208,7 @@ classdef SRDKF
         q_i_F = q_fused(:, i);
         Omega_i_F = Omega_fused(:, :, i);
 
-        [q_i_pred, Psi_i_pred, ~, theta_i] = predictRobustFusion( ...
+        [q_i_pred, Psi_i_pred, ~, theta_i] = doRobustPrediction( ...
           q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
 
         q_pred(:, i) = q_i_pred;
@@ -232,7 +232,7 @@ classdef SRDKF
           Omega_i_check = Psi_bar(:, :, i);
         end
 
-        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = predictRobustFusion( ...
+        [q_i_bar, Psi_i_bar, ~, theta_i_bar] = doRobustPrediction( ...
           q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
 
         q_bar_next(:, i) = q_i_bar;
