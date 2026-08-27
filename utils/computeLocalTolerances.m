@@ -30,20 +30,36 @@
 %   Inputs
 %     plant    : SingleTarget3dModel (provides A, C, B, D, n, p, m, T).
 %     P0       : prior covariance (seeds the LFM forward sweep).
-%     bGlobal  : scalar global KL radius (must be > 0; e.g. lfmKlTolerance).
+%     bGlobal  : scalar global KL radius (e.g. lfmKlTolerance). bGlobal <= 0
+%                means "no model uncertainty" and short-circuits to b^i = 0 for
+%                every node (see below).
 %     netGraph : network digraph; netGraph.Nodes.isSensor selects the slice.
 %
 %   Output
 %     bLocal   : N-by-1 vector, bLocal(i) = b^i, with 0 < b^i <= bGlobal for
-%                sensor nodes (paper: local tolerance never exceeds the global).
+%                sensor nodes (paper: local tolerance never exceeds the global),
+%                or all zeros when bGlobal <= 0.
+%
+%   The b -> 0 limit is handled analytically rather than numerically: the LFM
+%   collapses to the nominal plant (H -> 0, Kv -> I, so Kbar = K and b^i = 0),
+%   but LeastFavorableModel cannot represent b = 0 (its backward recursion is
+%   seeded with lambda = 1/theta = Inf), so bGlobal <= 0 returns zeros without
+%   building the LFM. Downstream, b^i = 0 gives theta = 0 in findTheta and the
+%   robust prediction steps reduce to the nominal ones.
 %
 %   See also LeastFavorableModel, RDKFLOC, SRDKFLOC.
 
 %
 function bLocal = computeLocalTolerances(plant, P0, bGlobal, netGraph)
+  N = numnodes(netGraph);
+
+  if bGlobal <= 0
+    bLocal = zeros(N, 1);
+    return
+  end
+
   n = plant.n;
   T = plant.T;
-  N = numnodes(netGraph);
   isSensor = netGraph.Nodes.isSensor;
 
   % Measurement rows per sensor (p_i): 3 in this model. Derived from the stacked

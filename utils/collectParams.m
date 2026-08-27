@@ -24,9 +24,6 @@ function p = collectParams(varargin)
     varargin = varargin{1};
   end
 
-  overrodeKl = false;
-  overrodeLfmKl = false;
-
   i = 1;
   while i <= numel(varargin)
     arg = varargin{i};
@@ -35,8 +32,6 @@ function p = collectParams(varargin)
       for j = 1:numel(f)
         p.(f{j}) = arg.(f{j});
       end
-      if isfield(arg, 'klTolerance'), overrodeKl = true; end
-      if isfield(arg, 'lfmKlTolerance'), overrodeLfmKl = true; end
       i = i + 1;
     elseif (ischar(arg) || isstring(arg)) && contains(arg, '=')
       parts = split(string(arg), '=');
@@ -53,8 +48,6 @@ function p = collectParams(varargin)
         end
       end
       p.(k) = val;
-      if strcmp(k, 'klTolerance'), overrodeKl = true; end
-      if strcmp(k, 'lfmKlTolerance'), overrodeLfmKl = true; end
       i = i + 1;
     elseif i + 1 <= numel(varargin) && (ischar(arg) || isstring(arg))
       k = char(arg);
@@ -72,15 +65,9 @@ function p = collectParams(varargin)
         end
       end
       p.(k) = val;
-      if strcmp(k, 'klTolerance'), overrodeKl = true; end
-      if strcmp(k, 'lfmKlTolerance'), overrodeLfmKl = true; end
       i = i + 2;
     else
       i = i + 1;
     end
-  end
-
-  if overrodeKl && ~overrodeLfmKl
-    p.lfmKlTolerance = p.klTolerance;
   end
 end
