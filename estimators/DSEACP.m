@@ -18,6 +18,7 @@ classdef DSEACP
     A
     C
     Q
+    Qinv
     R
     n
     senBlock
@@ -40,6 +41,7 @@ classdef DSEACP
       self.A = plant.A;
       self.C = plant.C;
       self.Q = plant.B * plant.B';
+      self.Qinv = self.Q \ eye(size(self.Q));
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
@@ -78,7 +80,7 @@ classdef DSEACP
       self.RMSE = calculateRmse(self.X_hat, X);
     end
 
-    %Correction Step
+    %% Correction Step
     function [q_upd, Omega_upd] = update(self, q_pred, Omega_pred, y)
       q_upd = zeros(self.n, self.N);
       Omega_upd = zeros(self.n, self.n, self.N);
@@ -131,7 +133,8 @@ classdef DSEACP
       q_fused = q_cons(:, :, end);
       Omega_fused = Omega_cons(:, :, :, end);
     end
-    %Prediction step
+
+    %% Prediction step
     function [q_pred, Omega_pred] = prediction(self, q_fused, Omega_fused)
       q_pred = zeros(self.n, self.N);
       Omega_pred = zeros(self.n, self.n, self.N);
@@ -140,14 +143,8 @@ classdef DSEACP
         q_i = q_fused(:, i);
         Omega_i = Omega_fused(:, :, i);
 
-        % TODO: Review/Cleanup
-        I = eye(self.n);
-        foo = inv(Omega_i + self.A' * (self.Q \ self.A));
-        bar = self.A' \ (Omega_i / self.A);
-        baz = self.A' \ Omega_i;
-
-        q_pred(:, i) = self.A' \ ((I - Omega_i * foo) * q_i);
-        Omega_pred(:, :, i) = bar - baz * foo * baz';
+        Omega_pred(:, :, i) = predictOmega(Omega_i, self.A, self.Qinv);
+        q_pred(:, i) = Omega_pred(:, :, i) * self.A * (Omega_i \ q_i);
       end
 
     end
