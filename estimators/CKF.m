@@ -7,6 +7,7 @@ classdef CKF
     A
     C
     Q
+    Qinv
     R
     n
     % Precomputed measurement info term
@@ -25,6 +26,7 @@ classdef CKF
       self.A = plant.A;
       self.C = plant.C;
       self.Q = plant.B * plant.B';
+      self.Qinv = self.Q \ eye(size(self.Q));
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
@@ -59,7 +61,7 @@ classdef CKF
 
     %% Prediction Step
     function [q_pred, Omega_pred] = prediction(self, q_upd, Omega_upd)
-      Omega_pred = predictOmega(Omega_upd, self.A, self.Q);
+      Omega_pred = predictOmega(Omega_upd, self.A, self.Qinv);
       q_pred     = Omega_pred * self.A * (Omega_upd \ q_upd);
     end
   end

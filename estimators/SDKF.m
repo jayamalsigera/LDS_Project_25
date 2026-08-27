@@ -29,6 +29,7 @@ classdef SDKF
     A
     C
     Q
+    Qinv
     R
     n
     senBlock
@@ -53,6 +54,7 @@ classdef SDKF
       self.A = plant.A;
       self.C = plant.C;
       self.Q = plant.B * plant.B';
+      self.Qinv = self.Q \ eye(size(self.Q));
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
@@ -173,7 +175,7 @@ classdef SDKF
       Omega_pred = zeros(self.n, self.n, self.N);
 
       for i = 1:self.N
-        Omega_pred(:, :, i) = predictOmega(Omega_fused(:, :, i), self.A, self.Q);
+        Omega_pred(:, :, i) = predictOmega(Omega_fused(:, :, i), self.A, self.Qinv);
         q_pred(:, i)        = Omega_pred(:, :, i) * self.A * (Omega_fused(:, :, i) \ q_fused(:, i));
       end
     end
@@ -192,7 +194,7 @@ classdef SDKF
           Omega_check = Omega_bar(:, :, i);
         end
 
-        Omega_bar_next(:, :, i) = predictOmega(Omega_check, self.A, self.Q);
+        Omega_bar_next(:, :, i) = predictOmega(Omega_check, self.A, self.Qinv);
         q_bar_next(:, i)        = Omega_bar_next(:, :, i) * self.A * (Omega_check \ q_check);
       end
     end
