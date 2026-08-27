@@ -20,6 +20,7 @@ classdef CRKF
     A
     C
     Q
+    Qinv
     R
     n
     % Precomputed measurement info term
@@ -40,6 +41,7 @@ classdef CRKF
       self.A = plant.A;
       self.C = plant.C;
       self.Q = plant.B * plant.B';
+      self.Qinv = self.Q \ eye(size(self.Q));
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
@@ -75,7 +77,7 @@ classdef CRKF
 
     %% Robust Prediction according to (Ghion & Zorzi, 2023)
     function [q_pred, Psi_pred, theta] = prediction(self, q_upd, Omega_upd)
-      [q_pred, Psi_pred, ~, theta] = doRobustPrediction(q_upd, Omega_upd, self.A, self.Q, self.b);
+      [q_pred, Psi_pred, ~, theta] = doRobustPrediction(q_upd, Omega_upd, self.A, self.Qinv, self.b);
     end
   end
 end

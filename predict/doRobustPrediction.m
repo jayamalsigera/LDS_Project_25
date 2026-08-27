@@ -2,10 +2,10 @@
 %
 % This function serves both eqs. (12) and (14) in (Ghion & Zorzi, 2023).
 %
-function [q_out, Psi_out, Omega_out, theta] = doRobustPrediction(q_in, Omega_in, A, Q, b)
+function [q_out, Psi_out, Omega_out, theta] = doRobustPrediction(q_in, Omega_in, A, Qinv, b)
 
   % Nominal information matrix
-  Omega_out = predictOmega(Omega_in, A, Q);
+  Omega_out = predictOmega(Omega_in, A, Qinv);
 
   % Find theta such that gamma(Omega_out, theta) = b
   theta = findTheta(Omega_out, b);

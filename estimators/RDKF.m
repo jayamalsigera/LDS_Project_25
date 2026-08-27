@@ -22,6 +22,7 @@ classdef RDKF
     A
     C
     Q
+    Qinv
     R
     n
     senBlock
@@ -50,6 +51,7 @@ classdef RDKF
       self.A = plant.A;
       self.C = plant.C;
       self.Q = plant.B * plant.B';
+      self.Qinv = self.Q \ eye(size(self.Q));
       self.R = plant.D * plant.D';
 
       self.n = plant.n;
@@ -203,7 +205,7 @@ classdef RDKF
         Omega_i_F = Omega_fused(:, :, i);
 
         [q_i_pred, Psi_i_pred, ~, theta_i] = doRobustPrediction( ...
-          q_i_F, Omega_i_F, self.A, self.Q, self.b(i));
+          q_i_F, Omega_i_F, self.A, self.Qinv, self.b(i));
 
         q_pred(:, i) = q_i_pred;
         Psi(:, :, i) = Psi_i_pred;
@@ -227,7 +229,7 @@ classdef RDKF
         end
 
         [q_i_bar, Psi_i_bar, ~, theta_i_bar] = doRobustPrediction( ...
-          q_i_check, Omega_i_check, self.A, self.Q, self.b(i));
+          q_i_check, Omega_i_check, self.A, self.Qinv, self.b(i));
 
         q_bar_next(:, i) = q_i_bar;
         Psi_bar_next(:, :, i) = Psi_i_bar;
