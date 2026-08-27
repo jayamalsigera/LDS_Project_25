@@ -53,7 +53,7 @@ function [meanRmse, finalRmse, meanTx, ssMean, ssStd, rmseCurves, txCurves] = ..
     txCurves(ci, :)   = mean(tLog, 1);
     meanRmse(ci)  = mean(rmseCurves(ci, :));
     finalRmse(ci) = rmseCurves(ci, end);
-    meanTx(ci)    = mean(txCurves(ci, 2:end));   % drop t=0 (always 0)
+    meanTx(ci)    = mean(txCurves(ci, :));
     [ssMean(ci), ssStd(ci)] = ssRmseStats(rLog, T);
   end
 end

@@ -63,18 +63,14 @@ classdef DSEACP
       q_pred = repmat(P0 \ x0_hat, 1, self.N);
       Omega_pred = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
-      self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
+      for t = 1:self.T + 1
+        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, Y(:, t));
+        for i = 1:self.N
+          self.X_hat(:, i, t) = pinv(Omega_upd(:, :, i)) * q_upd(:, i);
+        end
 
-      for t = 2:self.T + 1
-        y = Y(:, t);
-
-        [q_upd, Omega_upd] = self.update(q_pred, Omega_pred, y);
         [q_fused, Omega_fused] = self.fusion(q_upd, Omega_upd);
         [q_pred, Omega_pred] = self.prediction(q_fused, Omega_fused);
-
-        for i = 1:self.N
-          self.X_hat(:, i, t) = pinv(Omega_pred(:, :, i)) * q_pred(:, i);
-        end
       end
 
       self.RMSE = calculateRmse(self.X_hat, X);

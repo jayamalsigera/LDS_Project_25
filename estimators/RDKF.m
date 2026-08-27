@@ -86,17 +86,14 @@ classdef RDKF
       q_pred = repmat(P0 \ x0_hat, 1, self.N);
       Psi = repmat(P0 \ eye(self.n), 1, 1, self.N);
 
-      self.X_hat(:, :, 1) = repmat(x0_hat, 1, self.N);
-
       % Initializing the "global" predictions, assuming c_t = 1 for all nodes
       % in the first iteration (i.e. the first fusion step only relies on the
       % local filtered values).
       q_bar = nan(self.n, self.N);
       Psi_bar = nan(self.n, self.n, self.N);
 
-      for t = 2:self.T + 1
-        y = Y(:, t);
-        [q_upd, Omega_upd] = self.update(q_pred, Psi, y);
+      for t = 1:self.T + 1
+        [q_upd, Omega_upd] = self.update(q_pred, Psi, Y(:, t));
 
         for i = 1:self.N
           % Return to state representation from information form
