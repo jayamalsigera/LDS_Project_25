@@ -58,16 +58,9 @@ classdef CKF
     end
 
     %% Prediction Step
-    % TODO: Maybe there's a way to do this using Woodbury's identity?
     function [q_pred, Omega_pred] = prediction(self, q_upd, Omega_upd)
-      x_prev = Omega_upd \ q_upd;
-      P_prev = Omega_upd \ eye(self.n);
-
-      x_pred = self.A * x_prev;
-      P_pred = self.A * P_prev * self.A' + self.Q;
-
-      Omega_pred = P_pred \ eye(self.n);
-      q_pred = Omega_pred * x_pred;
+      Omega_pred = predictOmega(Omega_upd, self.A, self.Q);
+      q_pred     = Omega_pred * self.A * (Omega_upd \ q_upd);
     end
   end
 end
