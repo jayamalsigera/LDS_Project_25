@@ -40,6 +40,6 @@ codegen/
 *.sbproj.bak
 
 # Saved Monte Carlo run results
-results/
+/results
 
 sync_results.sh
