@@ -18,6 +18,12 @@ function plotRMSEvsTXrate(path)
   Ts = params.Ts;
   isLfm = contains(runData.script, 'Lfm');
 
+  % Shown as a subtitle so the tolerances behind a saved figure stay visible.
+  paramStr = sprintf('b = %g', params.klTolerance);
+  if isfield(params, 'lfmKlTolerance')
+    paramStr = sprintf('%s,  b_{LFM} = %g', paramStr, params.lfmKlTolerance);
+  end
+
   % Per-estimator plotting spec: {label, results field prefix, color, line style, hasTxRate}.
   %   Colors grouped by estimator family; line styles separate variants within a family.
   %   Centralized  → blue family    (CKF solid, CRKF dashed)
@@ -57,13 +63,13 @@ function plotRMSEvsTXrate(path)
     % A single-line TX-rate plot (e.g. DKF alone) is not worth showing.
     txMembers = members(cellfun(@(m) spec{strcmp(spec(:, 1), m), 5}, members));
     if numel(txMembers) < 2
-      figure; drawMetric(t, results, spec, members, 'Rmse', name, isLfm);
+      figure; drawMetric(t, results, spec, members, 'Rmse', name, isLfm, paramStr);
     else
       figure
       subplot(1, 2, 1);
-      drawMetric(t, results, spec, members, 'Rmse', name, isLfm);
+      drawMetric(t, results, spec, members, 'Rmse', name, isLfm, paramStr);
       subplot(1, 2, 2);
-      drawMetric(t, results, spec, txMembers, 'TxRate', name, isLfm);
+      drawMetric(t, results, spec, txMembers, 'TxRate', name, isLfm, paramStr);
     end
 
     if ~exist('results/figures', 'dir')
@@ -80,7 +86,7 @@ function plotRMSEvsTXrate(path)
   end
 end
 
-function drawMetric(t, results, spec, members, suffix, groupName, isLfm)
+function drawMetric(t, results, spec, members, suffix, groupName, isLfm, paramStr)
 % Draw one metric ('Rmse' or 'TxRate') into the current axes.
   isRmse = strcmp(suffix, 'Rmse');
 
@@ -112,7 +118,14 @@ function drawMetric(t, results, spec, members, suffix, groupName, isLfm)
   else
     titleSuffix = '';
   end
-  title(sprintf('%s vs Time — %s%s', metricName, groupName, titleSuffix));
+  titleStr = sprintf('%s vs Time — %s%s', metricName, groupName, titleSuffix);
+  if exist('subtitle', 'file') || exist('subtitle', 'builtin')
+    title(titleStr);
+    subtitle(paramStr);
+  else
+    % Pre-R2020b: fold the parameters into a second title line.
+    title({titleStr, paramStr});
+  end
   xlabel('Time (s)'); ylabel(metricName);
   legend('Location', 'northeast'); grid();
 end
